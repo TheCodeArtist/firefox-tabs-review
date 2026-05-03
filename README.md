@@ -54,18 +54,17 @@ You can open the file from disk, or publish the same file as a static page.
 
 The viewer accepts:
 
-- a Firefox `Profiles` folder with multiple profiles.
-- one Firefox profile folder.
-- a `recovery.jsonlz4`, `previous.jsonlz4`, or `sessionstore.jsonlz4` file.
+- a Firefox session file (`recovery.jsonlz4`, `previous.jsonlz4`, or `sessionstore.jsonlz4`).
+- the session file plus the profile's `containers.json`, for container names, colors, and icons.
+- a whole profile folder dropped from a Chromium-based browser (fallback; slow on large profiles).
 - a JSON previously exported by this viewer.
 
-When a folder is loaded, it looks for session files in this order:
+The fast path is two files:
 
-1. `<profile>/sessionstore-backups/recovery.jsonlz4`
-2. `<profile>/sessionstore-backups/previous.jsonlz4`
-3. `<profile>/sessionstore.jsonlz4`
+1. `<profile>/sessionstore-backups/recovery.jsonlz4` (falls back to `previous.jsonlz4` or `<profile>/sessionstore.jsonlz4`).
+2. `<profile>/containers.json` (optional; only needed for container metadata).
 
-If `containers.json` is present, the viewer also reads Firefox container names, colors, and icons.
+Both can be dragged onto the page together, picked one at a time in the guided loader, or picked together with the fallback **Pick both Firefox files at once...** link.
 
 
 ## How it works
@@ -89,19 +88,24 @@ After a successful load, the viewer stores the last tab snapshot in this browser
 
 `Export reloadable JSON` downloads a viewer-specific JSON file with the tabs and favicons. Drop that JSON back into the load dialog later to continue from the same snapshot.
 
-Preferences such as theme, grouping, sorting, density, sidebar width, and sidebar visibility are stored locally in the browser. `Reset viewer` clears the current tab list plus saved snapshot, preferences, and theme for this app.
+Preferences such as theme, grouping, sorting, density, sidebar width, and sidebar visibility are stored locally in the browser. `Reset viewer` clears the current tab list and the saved snapshot for this app, but keeps your view preferences and chosen light/dark theme.
 
 ----
 
 # How to use it
 
-Open `firefox-tabs-review.html` in a browser and load the Firefox data.  
+Open `firefox-tabs-review.html` in a browser, then drag `recovery.jsonlz4`
+(and optionally `containers.json`) from your Firefox profile onto the page,
+or use the guided picker in the load dialog. If the session uses containers,
+the dialog asks for `containers.json` after the session file loads.
 
 > Note: The load dialog includes platform-specific hints for the normal Firefox folder paths:
 > 
 > - Windows: `%APPDATA%\Mozilla\Firefox`
 > - macOS: `~/Library/Application Support/Firefox`
 > - Linux: `~/.mozilla/firefox`
+>
+> The profile folder is under `<that path>/Profiles/<profile>/`. `recovery.jsonlz4` lives inside its `sessionstore-backups/` subfolder; `containers.json` sits directly in the profile folder.
 
 Start with the sidebar.  
 Duplicates and top domains are usually the easiest cleanup.
