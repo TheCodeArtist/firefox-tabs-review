@@ -1,0 +1,5452 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Firefox Tabs Viewer</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0b0d12;
+      --panel: #121722;
+      --panel-2: #171d2a;
+      --panel-3: #1d2533;
+      --text: #e8eef8;
+      --muted: #98a5b8;
+      --subtle: #66748a;
+      --border: #283244;
+      --accent: #ffb38a;
+      --accent-2: #b8a7ff;
+      --shadow: 0 18px 60px rgba(0, 0, 0, .35);
+      --radius: 14px;
+      --row-height: 56px;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    :root[data-theme="light"] {
+      color-scheme: light;
+      --bg: #f6f7fb;
+      --panel: #ffffff;
+      --panel-2: #f0f3f8;
+      --panel-3: #e8edf5;
+      --text: #151923;
+      --muted: #4d5a6b;
+      --subtle: #718096;
+      --border: #d8dee9;
+      --shadow: 0 18px 60px rgba(39, 47, 64, .13);
+    }
+
+    * { box-sizing: border-box; }
+    html, body { min-height: 100%; }
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at top left, rgba(255, 179, 138, .14), transparent 34rem),
+        radial-gradient(circle at top right, rgba(184, 167, 255, .14), transparent 32rem),
+        var(--bg);
+      color: var(--text);
+      font-size: 13px;
+    }
+
+    body.search-spotlight::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: 15;
+      pointer-events: none;
+      background: rgba(6, 11, 22, .24);
+      backdrop-filter: blur(1px) saturate(.85);
+    }
+
+    body.command-spotlight::before {
+      background: rgba(3, 7, 18, .42);
+      backdrop-filter: blur(2px) saturate(.72);
+    }
+
+    :root[data-theme="light"] body.search-spotlight::before {
+      background: rgba(15, 23, 42, .14);
+      backdrop-filter: blur(1px) saturate(.9);
+    }
+
+    :root[data-theme="light"] body.command-spotlight::before {
+      background: rgba(15, 23, 42, .2);
+      backdrop-filter: blur(1.5px) saturate(.85);
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    button, input, select {
+      font: inherit;
+      color: inherit;
+    }
+
+    button, select, .file-button {
+      border: 1px solid var(--border);
+      background: var(--panel-2);
+      border-radius: 10px;
+      padding: 8px 10px;
+      color: var(--text);
+      cursor: pointer;
+    }
+
+    button:hover, .file-button:hover, select:hover { border-color: var(--accent); }
+    button:disabled {
+      cursor: not-allowed;
+      opacity: .55;
+    }
+
+    .file-button.primary {
+      background: linear-gradient(135deg, var(--accent), #ffd2b8);
+      border-color: transparent;
+      color: #111;
+      font-weight: 700;
+    }
+
+    button.ghost {
+      background: transparent;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    code {
+      font-family: ui-monospace, "Cascadia Code", "Fira Code", Consolas, monospace;
+      font-size: 0.92em;
+      background: var(--panel-3);
+      padding: 1px 5px;
+      border-radius: 4px;
+    }
+
+    .app {
+      min-height: 100vh;
+      height: 100vh;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      overflow: hidden;
+    }
+
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      backdrop-filter: blur(18px);
+      background: color-mix(in srgb, var(--bg) 76%, transparent);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .topbar {
+      display: grid;
+      grid-template-columns: minmax(280px, 1fr) auto;
+      gap: 14px;
+      align-items: center;
+      padding: 14px 18px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .logo {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #111;
+      font-size: 18px;
+      font-weight: 900;
+      flex: 0 0 auto;
+    }
+
+    h1 {
+      font-size: 16px;
+      margin: 0;
+      letter-spacing: -.02em;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      margin-top: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .toolbar-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      align-items: center;
+    }
+
+    .toolbar-icon-button {
+      width: 34px;
+      height: 34px;
+      padding: 0;
+      display: inline-grid;
+      place-items: center;
+      border-radius: 11px;
+    }
+
+    .toolbar-icon-button svg {
+      width: 18px;
+      height: 18px;
+      display: block;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 1.8;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .theme-toggle {
+      width: 50px;
+      height: 28px;
+      padding: 0;
+      border-radius: 999px;
+      display: inline-grid;
+      place-items: center;
+      overflow: hidden;
+    }
+
+    .theme-toggle-track {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      border-radius: inherit;
+      display: block;
+      background: linear-gradient(135deg, #111827, #263349);
+      transition: background .18s ease;
+    }
+
+    :root[data-theme="light"] .theme-toggle-track {
+      background: linear-gradient(135deg, #dff1ff, #fff0b8);
+    }
+
+    .theme-toggle-thumb {
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: #f7fafc;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, .3);
+      transition: transform .18s ease, background .18s ease;
+    }
+
+    .theme-toggle-thumb::before {
+      content: "";
+      width: 11px;
+      height: 11px;
+      border-radius: 50%;
+      box-shadow: inset 5px -3px 0 1px #263349;
+      transition: background .18s ease, box-shadow .18s ease;
+    }
+
+    :root[data-theme="light"] .theme-toggle-thumb {
+      transform: translateX(24px);
+      background: #ffd166;
+    }
+
+    :root[data-theme="light"] .theme-toggle-thumb::before {
+      width: 9px;
+      height: 9px;
+      background: #8a4f00;
+      box-shadow:
+        0 -7px 0 -4px #8a4f00,
+        0 7px 0 -4px #8a4f00,
+        7px 0 0 -4px #8a4f00,
+        -7px 0 0 -4px #8a4f00,
+        5px 5px 0 -4px #8a4f00,
+        -5px 5px 0 -4px #8a4f00,
+        5px -5px 0 -4px #8a4f00,
+        -5px -5px 0 -4px #8a4f00;
+    }
+
+    .filters {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      grid-template-areas:
+        "sidebar filters views"
+        ". search search";
+      gap: 8px;
+      padding: 0 18px 14px;
+      align-items: center;
+    }
+
+    .filter-controls,
+    .view-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+      flex-wrap: wrap;
+    }
+
+    .filter-controls {
+      grid-area: filters;
+    }
+
+    .filter-controls select,
+    .view-controls select {
+      min-width: 0;
+    }
+
+    .view-controls {
+      grid-area: views;
+      justify-content: flex-end;
+      padding-left: 10px;
+      border-left: 1px solid var(--border);
+    }
+
+    .view-controls select {
+      background: color-mix(in srgb, var(--panel-2) 82%, var(--accent));
+      border-color: color-mix(in srgb, var(--border) 72%, var(--accent));
+      font-weight: 650;
+    }
+
+    .sidebar-toggle {
+      grid-area: sidebar;
+      position: relative;
+      z-index: 2;
+      width: 36px;
+      height: 36px;
+      padding: 0;
+      display: grid;
+      place-items: center;
+      border-radius: 11px;
+    }
+
+    .sidebar-toggle[aria-expanded="true"] {
+      border-color: var(--accent);
+      background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 26%, var(--panel-2)), var(--panel-2));
+      box-shadow: 0 10px 26px rgba(255, 179, 138, .14);
+    }
+
+    .sidebar-toggle[aria-expanded="true"]::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: calc(100% + 8px);
+      width: 2px;
+      height: 70px;
+      border-radius: 99px;
+      background: linear-gradient(180deg, var(--accent), transparent);
+      transform: translateX(-50%);
+      pointer-events: none;
+    }
+
+    .sidebar-toggle:disabled {
+      cursor: not-allowed;
+      opacity: .55;
+    }
+
+    .insights-glyph {
+      display: block;
+      font-size: 17px;
+      line-height: 1;
+      transition: transform .16s ease;
+    }
+
+    .sidebar-toggle[aria-expanded="true"] .insights-glyph {
+      transform: translateY(-1px) scale(1.04);
+    }
+
+    .search-wrap {
+      grid-area: search;
+      position: relative;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      min-width: 0;
+      width: 100%;
+      transition: filter .16s ease, transform .16s ease;
+    }
+
+    body.search-spotlight .toolbar-actions,
+    body.search-spotlight .filter-controls,
+    body.search-spotlight .view-controls,
+    body.search-spotlight .sidebar-toggle {
+      opacity: .58;
+      transition: opacity .16s ease;
+    }
+
+    .search-wrap.spotlight-active {
+      z-index: 55;
+      filter: drop-shadow(0 18px 42px rgba(0, 0, 0, .32));
+    }
+
+    .search-wrap.command-spotlight {
+      filter: drop-shadow(0 22px 54px rgba(0, 0, 0, .48));
+    }
+
+    .search-wrap input {
+      grid-column: 1;
+      grid-row: 1;
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 12px 0 0 12px;
+      padding: 10px 40px 10px 12px;
+      background: var(--panel);
+      outline: none;
+      min-width: 0;
+    }
+
+    .search-wrap input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(255, 179, 138, .16);
+    }
+
+    .search-wrap.spotlight-active input,
+    .search-wrap.spotlight-active .search-assist,
+    .search-wrap.spotlight-active .command-panel {
+      border-color: color-mix(in srgb, var(--accent) 82%, var(--border));
+      box-shadow: 0 0 0 3px rgba(255, 179, 138, .16), var(--shadow);
+    }
+
+    .search-wrap.command-spotlight .command-button,
+    .search-wrap.command-spotlight .command-panel {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 4px rgba(255, 179, 138, .2), var(--shadow);
+    }
+
+    .command-button {
+      grid-column: 2;
+      grid-row: 1;
+      position: relative;
+      z-index: 1;
+      border-radius: 0 12px 12px 0;
+      border-left: 0;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-width: max-content;
+      font-weight: 650;
+      background: color-mix(in srgb, var(--panel-2) 88%, var(--accent));
+    }
+
+    .command-button .button-kbd {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1px 5px;
+      color: var(--muted);
+      background: var(--panel);
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .search-wrap.spotlight-active .kbd {
+      border-color: color-mix(in srgb, var(--accent) 70%, var(--border));
+      color: var(--text);
+      background: color-mix(in srgb, var(--accent) 16%, var(--panel));
+    }
+
+    .kbd {
+      grid-column: 1;
+      grid-row: 1;
+      align-self: center;
+      justify-self: end;
+      margin-right: 12px;
+      pointer-events: none;
+      z-index: 1;
+      color: var(--subtle);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1px 5px;
+      font-size: 11px;
+    }
+
+    .search-assist,
+    .command-panel {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: calc(100% + 6px);
+      z-index: 45;
+      border: 1px solid var(--border);
+      background: color-mix(in srgb, var(--panel) 96%, transparent);
+      backdrop-filter: blur(18px);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+    }
+
+    .search-assist {
+      padding: 10px 12px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .command-panel {
+      display: grid;
+      gap: 8px;
+      padding: 8px;
+    }
+
+    .command-input {
+      border-radius: 10px;
+      padding-right: 12px;
+    }
+
+    .search-wrap .command-input {
+      border-radius: 10px;
+      padding-right: 12px;
+    }
+
+    .command-palette {
+      max-height: min(420px, 58vh);
+      overflow: auto;
+    }
+
+    .active-filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 0 18px 14px;
+      align-items: center;
+    }
+
+    .active-filters-label {
+      color: var(--subtle);
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+    }
+
+    .active-filter-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 5px 8px 5px 10px;
+      background: var(--panel-2);
+      color: var(--muted);
+      max-width: min(360px, 100%);
+    }
+
+    .active-filter-chip strong {
+      color: var(--text);
+      font-weight: 750;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .active-filter-chip button {
+      width: 18px;
+      height: 18px;
+      padding: 0;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      line-height: 1;
+      color: var(--text);
+      background: var(--panel-3);
+    }
+
+    main {
+      --sidebar-width: 320px;
+      min-height: 0;
+      display: grid;
+      grid-template-columns: minmax(260px, var(--sidebar-width)) 10px minmax(0, 1fr);
+      grid-template-rows: minmax(0, 1fr);
+      column-gap: 8px;
+      padding: 16px 18px 24px;
+      overflow: hidden;
+    }
+
+    main.sidebar-hidden {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    main.sidebar-hidden .content {
+      grid-column: 1;
+    }
+
+    aside {
+      align-self: stretch;
+      display: grid;
+      gap: 12px;
+      min-height: 0;
+      max-height: 100%;
+      align-content: start;
+      overflow-x: hidden;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      scrollbar-gutter: stable;
+      scrollbar-width: thin;
+      scrollbar-color: color-mix(in srgb, var(--border) 70%, transparent) transparent;
+      padding-right: 6px;
+      transform-origin: top left;
+    }
+
+    aside:hover {
+      scrollbar-color: color-mix(in srgb, var(--muted) 60%, transparent) transparent;
+    }
+
+    aside::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    aside::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    aside::-webkit-scrollbar-thumb {
+      background: color-mix(in srgb, var(--border) 70%, transparent);
+      border: 2px solid transparent;
+      border-radius: 999px;
+      background-clip: content-box;
+    }
+
+    aside:hover::-webkit-scrollbar-thumb {
+      background: color-mix(in srgb, var(--muted) 60%, transparent);
+      background-clip: content-box;
+    }
+
+    aside.sidebar-revealing {
+      animation: sidebarDropDown .18s ease-out;
+    }
+
+    aside.sidebar-collapsing {
+      animation: sidebarRollUp .16s ease-in forwards;
+      pointer-events: none;
+    }
+
+    @keyframes sidebarDropDown {
+      from {
+        opacity: 0;
+        transform: translateY(-10px) scale(.985);
+        clip-path: inset(0 0 100% 0 round var(--radius));
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        clip-path: inset(0 0 0 0 round var(--radius));
+      }
+    }
+
+    @keyframes sidebarRollUp {
+      from {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        clip-path: inset(0 0 0 0 round var(--radius));
+      }
+
+      to {
+        opacity: 0;
+        transform: translateY(-10px) scale(.985);
+        clip-path: inset(0 0 100% 0 round var(--radius));
+      }
+    }
+
+    .sidebar-resizer {
+      align-self: stretch;
+      display: flex;
+      justify-content: center;
+      cursor: col-resize;
+      touch-action: none;
+      border: 0;
+      background: transparent;
+      padding: 0;
+    }
+
+    .sidebar-resizer::before {
+      content: "";
+      width: 2px;
+      border-radius: 99px;
+      background: color-mix(in srgb, var(--border) 34%, transparent);
+      opacity: .34;
+      transition: background .15s ease, opacity .15s ease, width .15s ease;
+    }
+
+    .sidebar-resizer:hover::before,
+    .sidebar-resizer:focus-visible::before,
+    .sidebar-resizer.active::before {
+      width: 4px;
+      background: linear-gradient(180deg, var(--accent), var(--accent-2));
+      opacity: 1;
+    }
+
+    .sidebar-resizer:focus-visible {
+      outline: 2px solid color-mix(in srgb, var(--accent) 58%, transparent);
+      outline-offset: 3px;
+      border-radius: 99px;
+    }
+
+    body.resizing-sidebar {
+      cursor: col-resize;
+      user-select: none;
+    }
+
+    .card {
+      background: color-mix(in srgb, var(--panel) 94%, transparent);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .card h2 {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .09em;
+      color: var(--muted);
+      margin: 0;
+      padding: 13px 14px 0;
+    }
+
+    .card-note {
+      margin: 4px 14px 0;
+      color: var(--subtle);
+      font-size: 11px;
+      line-height: 1.35;
+    }
+
+    .card-body {
+      padding: 12px 14px 14px;
+    }
+
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+
+    .stat {
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px;
+    }
+
+    .stat strong {
+      display: block;
+      font-size: 20px;
+      line-height: 1;
+    }
+
+    .stat span {
+      display: block;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    .list {
+      display: grid;
+      gap: 6px;
+      min-width: 0;
+    }
+
+    .metric {
+      border: 1px solid var(--border);
+      background: var(--panel-2);
+      border-radius: 10px;
+      padding: 8px 9px;
+      cursor: pointer;
+      display: grid;
+      gap: 5px;
+      min-width: 0;
+    }
+
+    .metric:hover { border-color: var(--accent); }
+
+    .metric[aria-pressed="true"] {
+      border-color: var(--accent);
+      background: color-mix(in srgb, var(--accent) 13%, var(--panel-2));
+      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 34%, transparent);
+    }
+
+    .metric-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .metric-row > :first-child {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .metric-row > strong {
+      flex: 0 0 auto;
+    }
+
+    .bar {
+      position: relative;
+      height: 5px;
+      background: var(--panel-3);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+
+    .bar > span {
+      display: block;
+      height: 100%;
+      width: 100%;
+      background: linear-gradient(90deg, var(--accent-2), var(--accent));
+      clip-path: inset(0 calc(100% - var(--w, 0%)) 0 0);
+    }
+
+    .selection-state {
+      justify-self: start;
+      width: fit-content;
+      border-radius: 999px;
+      padding: 1px 6px;
+      background: color-mix(in srgb, var(--accent) 18%, transparent);
+      color: var(--text);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .03em;
+      text-transform: uppercase;
+    }
+
+    .content {
+      min-width: 0;
+      min-height: 0;
+      display: grid;
+      gap: 12px;
+      align-content: start;
+      overflow-x: hidden;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      scrollbar-gutter: stable;
+      padding-right: 6px;
+      scroll-padding-block: 12px 96px;
+    }
+
+    .group-toolbar {
+      position: sticky;
+      top: 0;
+      z-index: 14;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 12px;
+      border: 1px solid transparent;
+      background:
+        linear-gradient(color-mix(in srgb, var(--panel) 94%, transparent), color-mix(in srgb, var(--panel) 94%, transparent)) padding-box,
+        linear-gradient(90deg, var(--accent), var(--accent-2)) border-box;
+      backdrop-filter: blur(16px);
+      box-shadow: var(--shadow);
+    }
+
+    .group-toolbar-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+      color: var(--muted);
+      flex-wrap: wrap;
+    }
+
+    .group-toolbar-title strong {
+      color: color-mix(in srgb, var(--accent) 54%, var(--text));
+      font-size: 14px;
+    }
+
+    .group-toolbar-menu {
+      border-color: color-mix(in srgb, var(--accent-2) 42%, var(--border));
+      background: color-mix(in srgb, var(--accent-2) 13%, var(--panel-2));
+      white-space: nowrap;
+    }
+
+    .dropzone {
+      min-height: 56vh;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      padding: 40px 28px;
+      border: 2px dashed var(--border);
+      border-radius: 24px;
+      background: color-mix(in srgb, var(--panel) 72%, transparent);
+      transition: border-color .15s ease, background .15s ease, transform .15s ease;
+    }
+
+    .dropzone.dragover {
+      border-color: var(--accent);
+      border-style: solid;
+      background: color-mix(in srgb, var(--accent) 14%, var(--panel));
+      transform: scale(1.006);
+    }
+
+    .dropzone h2 {
+      margin: 0 0 10px;
+      font-size: 30px;
+      letter-spacing: -.04em;
+    }
+
+    .dropzone p {
+      max-width: 620px;
+      margin: 0 auto;
+      color: var(--muted);
+      font-size: 14.5px;
+      line-height: 1.6;
+    }
+
+    .drop-primary {
+      max-width: 680px;
+      margin: 24px auto 0;
+      padding: 32px 28px;
+      border: 2px dashed color-mix(in srgb, var(--accent) 68%, var(--border));
+      border-radius: 22px;
+      background:
+        radial-gradient(circle at top, color-mix(in srgb, var(--accent) 18%, transparent), transparent 58%),
+        linear-gradient(180deg, color-mix(in srgb, var(--panel-2) 88%, #fff), var(--panel-2));
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, .06),
+        0 14px 36px rgba(0, 0, 0, .08);
+      transition: border-color .15s ease, background .15s ease, transform .15s ease, box-shadow .15s ease;
+    }
+
+    .dropzone.dragover .drop-primary {
+      border-color: var(--accent);
+      background:
+        radial-gradient(circle at top, color-mix(in srgb, var(--accent) 28%, transparent), transparent 62%),
+        color-mix(in srgb, var(--accent) 12%, var(--panel-2));
+      transform: translateY(-1px);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, .08),
+        0 18px 44px rgba(255, 179, 138, .18);
+    }
+
+    .drop-primary strong {
+      display: block;
+      color: var(--text);
+      font-size: 18px;
+      margin-bottom: 8px;
+    }
+
+    .drop-primary span {
+      display: block;
+      color: var(--muted);
+      font-size: 13.5px;
+      line-height: 1.5;
+    }
+
+    .drop-icon {
+      width: 68px;
+      height: 68px;
+      border-radius: 20px;
+      display: grid;
+      place-items: center;
+      margin: 0 auto 18px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #111;
+      font-size: 34px;
+      box-shadow: 0 10px 30px rgba(255, 179, 138, .28);
+    }
+
+    .dropzone.dragover .drop-icon {
+      animation: dropBob .6s ease-in-out infinite alternate;
+    }
+
+    @keyframes dropBob {
+      from { transform: translateY(0); }
+      to { transform: translateY(-6px); }
+    }
+
+    .steps {
+      display: grid;
+      gap: 12px;
+      max-width: 100%;
+      margin: 16px auto 0;
+      text-align: left;
+    }
+
+    .primary-load-actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: center;
+      gap: 12px;
+      margin: 16px auto 0;
+    }
+
+    .secondary-import {
+      color: var(--subtle);
+      font-size: 12.5px;
+      line-height: 1;
+    }
+
+    .secondary-import .copy-btn {
+      padding: 5px 9px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .secondary-import .copy-btn:hover {
+      color: var(--text);
+      border-color: var(--accent);
+      filter: none;
+    }
+
+    .step {
+      display: grid;
+      grid-template-columns: 36px 1fr auto;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 16px;
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+    }
+
+    .option-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 56px;
+      position: relative;
+      margin-top: 6px;
+    }
+
+    .option-grid::before {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 10px;
+      bottom: 10px;
+      width: 2px;
+      background:
+        linear-gradient(
+          to bottom,
+          var(--border) 0,
+          var(--border) calc(50% - 24px),
+          transparent calc(50% - 24px),
+          transparent calc(50% + 24px),
+          var(--border) calc(50% + 24px),
+          var(--border) 100%
+        );
+      transform: translateX(-50%);
+    }
+
+    .option-grid::after {
+      content: "or";
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      z-index: 2;
+      transform: translate(-50%, -50%);
+      padding: 4px 8px;
+      border: 1px solid color-mix(in srgb, var(--accent) 55%, var(--border));
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--panel) 88%, var(--accent));
+      color: var(--text);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: .06em;
+      white-space: nowrap;
+      text-transform: uppercase;
+      box-shadow: 0 5px 14px rgba(0, 0, 0, .16);
+    }
+
+    .choice-label {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      max-width: 100%;
+      margin: 16px auto -2px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 750;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+    }
+
+    .choice-label::before,
+    .choice-label::after {
+      content: "";
+      height: 1px;
+      background: var(--border);
+      flex: 1;
+    }
+
+    .option-card {
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: 12px;
+      padding: 16px;
+      background: var(--panel-2);
+      border: 2px solid var(--border);
+      border-radius: 16px;
+      min-height: 178px;
+    }
+
+    .option-card.primary-path {
+      border-color: color-mix(in srgb, var(--accent) 75%, var(--border));
+      background:
+        linear-gradient(135deg, color-mix(in srgb, var(--accent) 10%, transparent), transparent 55%),
+        var(--panel-2);
+    }
+
+    .option-head {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .option-badge {
+      width: 38px;
+      height: 32px;
+      border-radius: 10px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #111;
+      font-weight: 850;
+      font-size: 12px;
+      flex: 0 0 auto;
+    }
+
+    .option-title {
+      font-weight: 750;
+      color: var(--text);
+      line-height: 1.25;
+    }
+
+    .option-body {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .instruction-line {
+      display: block;
+    }
+
+    .instruction-spacer {
+      display: block;
+      height: 10px;
+    }
+
+    .step-num {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #111;
+      font-weight: 800;
+      font-size: 14px;
+    }
+
+    .step-body {
+      min-width: 0;
+      font-size: 13.5px;
+      line-height: 1.5;
+    }
+
+    .step-body strong {
+      display: block;
+      font-size: 14px;
+      margin-bottom: 2px;
+      color: var(--text);
+    }
+
+    .step-body .path {
+      display: inline-block;
+      margin-top: 4px;
+      font-family: ui-monospace, "Cascadia Code", "Fira Code", Consolas, monospace;
+      background: var(--panel-3);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 3px 8px;
+      font-size: 12.5px;
+      word-break: break-all;
+    }
+
+    .step-body .shortcut-group,
+    .option-body .shortcut-group {
+      white-space: nowrap;
+    }
+
+    .step-body .shortcut,
+    .option-body .shortcut {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 7px;
+      border-radius: 5px;
+      border: 1px solid var(--border);
+      background: var(--panel-3);
+      font-family: ui-monospace, "Cascadia Code", "Fira Code", Consolas, monospace;
+      font-size: 11.5px;
+      color: var(--text);
+      margin: 0 2px;
+      vertical-align: middle;
+    }
+
+    .step-body .shortcut.shortcut-with-icon,
+    .option-body .shortcut.shortcut-with-icon {
+      gap: 4px;
+    }
+
+    .step-body .win-logo,
+    .option-body .win-logo {
+      width: 12px;
+      height: 12px;
+      color: var(--text);
+      flex: 0 0 auto;
+      transform: rotate(-4deg);
+    }
+
+    .step-body code,
+    .option-body code {
+      display: inline-block;
+      padding: 1px 6px;
+      border-radius: 4px;
+      background: var(--panel-3);
+      border: 1px solid var(--border);
+      font-size: 0.95em;
+    }
+
+    .copy-btn {
+      border-radius: 10px;
+      padding: 8px 14px;
+      font-size: 12.5px;
+      font-weight: 600;
+      background: linear-gradient(135deg, var(--accent), #ffd2b8);
+      color: #111;
+      border: none;
+      cursor: pointer;
+      white-space: nowrap;
+      text-align: center;
+    }
+
+    .copy-btn:hover {
+      filter: brightness(1.05);
+    }
+
+    .fallback-hint {
+      max-width: 100%;
+      margin: 18px auto 0;
+      padding: 10px 14px;
+      font-size: 12px;
+      color: var(--subtle);
+      text-align: left;
+      line-height: 1.6;
+    }
+
+    .load-help {
+      max-width: 100%;
+      margin: 18px auto 0;
+      text-align: left;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: color-mix(in srgb, var(--panel-2) 78%, transparent);
+    }
+
+    .load-help summary {
+      cursor: pointer;
+      padding: 12px 14px;
+      color: var(--text);
+      font-size: 13.5px;
+      font-weight: 750;
+    }
+
+    .load-help summary:hover {
+      color: var(--accent);
+    }
+
+    .load-help[open] {
+      padding-bottom: 14px;
+    }
+
+    .load-help .steps {
+      padding: 0 14px;
+    }
+
+    .other-platforms {
+      margin-top: 8px;
+      color: var(--subtle);
+      font-size: 11.5px;
+      line-height: 1.45;
+      opacity: .82;
+    }
+
+    .other-platforms code {
+      color: var(--subtle);
+      background: transparent;
+      border-color: color-mix(in srgb, var(--border) 62%, transparent);
+      padding-inline: 4px;
+    }
+
+    .other-platforms .platform-label {
+      color: var(--subtle);
+      font-weight: 650;
+    }
+
+    .step-body .platform-label {
+      display: inline;
+      margin: 0;
+      color: var(--text);
+      font-size: inherit;
+    }
+
+    .fallback-actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .group {
+      --group-radius: var(--radius);
+      border-radius: var(--group-radius);
+      overflow: visible;
+    }
+
+    .group-header {
+      width: 100%;
+      border: 0;
+      border-bottom: 1px solid var(--border);
+      background: var(--panel-2);
+      padding: 12px 14px;
+      border-radius: var(--group-radius) var(--group-radius) 0 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      text-align: left;
+      gap: 12px;
+    }
+
+    .group-title {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      min-width: 0;
+    }
+
+    .chevron {
+      color: var(--muted);
+      transition: transform .12s ease;
+    }
+
+    .group.collapsed .chevron { transform: rotate(-90deg); }
+    .group.collapsed .group-header {
+      border-bottom: 0;
+      border-radius: var(--group-radius);
+    }
+    .group.collapsed .rows { display: none; }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 3px 8px;
+      color: var(--muted);
+      background: color-mix(in srgb, var(--panel) 76%, transparent);
+      white-space: nowrap;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      border-radius: 999px;
+      padding: 3px 8px;
+      color: var(--chip-text, #000);
+      background: var(--chip, #aab4c4);
+      font-weight: 700;
+      white-space: nowrap;
+      font-size: 11px;
+    }
+
+    .chip:not(.has-icon)::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+      opacity: .7;
+    }
+
+    .chip-icon {
+      width: 12px;
+      height: 12px;
+      flex: 0 0 auto;
+    }
+
+    .chip-icon svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 1.7;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .rows {
+      display: grid;
+    }
+
+    .tab-row {
+      min-height: var(--row-height);
+      display: grid;
+      grid-template-columns: 28px 24px minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+      padding: 9px 14px;
+      border-bottom: 1px solid var(--border);
+      background: color-mix(in srgb, var(--panel) 95%, transparent);
+    }
+
+    .tab-row:last-child {
+      border-bottom: 0;
+      border-radius: 0 0 var(--group-radius) var(--group-radius);
+    }
+    .tab-row:hover, .tab-row.active {
+      background: color-mix(in srgb, var(--accent) 9%, var(--panel));
+    }
+
+    .selector {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--accent);
+    }
+
+    .favicon {
+      width: 20px;
+      height: 20px;
+      border-radius: 5px;
+      background: var(--panel-3);
+      object-fit: contain;
+    }
+
+    .fallback-icon {
+      width: 20px;
+      height: 20px;
+      border-radius: 5px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #111;
+      font-size: 11px;
+      font-weight: 900;
+    }
+
+    .tab-main {
+      min-width: 0;
+      display: grid;
+      gap: 4px;
+    }
+
+    .tab-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+      font-weight: 650;
+      letter-spacing: -.01em;
+    }
+
+    .tab-title a {
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    .tab-title a:hover { color: var(--accent); }
+
+    .tab-meta {
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .tab-url {
+      min-width: 0;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      color: var(--subtle);
+    }
+
+    .tab-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--muted);
+    }
+
+    .density-compact { --row-height: 34px; }
+    .density-compact .content { gap: 2px; }
+    .density-compact .group-toolbar {
+      gap: 6px;
+      margin-bottom: 8px;
+      padding: 5px 8px;
+    }
+    .density-compact .group {
+      --group-radius: 8px;
+      border-radius: 8px;
+      box-shadow: none;
+    }
+    .density-compact .group-header {
+      padding: 5px 8px;
+      gap: 6px;
+      min-height: 32px;
+    }
+    .density-compact .group-title,
+    .density-compact .tab-title,
+    .density-compact .tab-actions {
+      gap: 4px;
+      line-height: 1.2;
+    }
+    .density-compact .pill,
+    .density-compact .chip {
+      gap: 4px;
+      line-height: 1.2;
+      padding: 1px 5px;
+      font-size: 10.5px;
+    }
+    .density-compact .chip:not(.has-icon)::before {
+      width: 5px;
+      height: 5px;
+    }
+    .density-compact .chip-icon {
+      width: 10px;
+      height: 10px;
+    }
+    .density-compact .tab-row {
+      grid-template-columns: 22px 18px minmax(0, 1fr) auto;
+      gap: 5px;
+      padding: 4px 8px;
+    }
+    .density-compact .selector {
+      width: 14px;
+      height: 14px;
+    }
+    .density-compact .favicon,
+    .density-compact .fallback-icon {
+      width: 18px;
+      height: 18px;
+      border-radius: 4px;
+      font-size: 10px;
+    }
+    .density-compact .tab-meta { display: none; }
+
+    .density-cards .rows {
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 10px;
+      padding: 12px;
+    }
+
+    .density-cards .tab-row {
+      border: 1px solid var(--border);
+      border-radius: 13px;
+      min-height: 96px;
+      grid-template-columns: 20px 30px minmax(0, 1fr);
+      gap: 8px;
+      padding: 10px;
+      align-content: start;
+    }
+
+    .density-cards .favicon,
+    .density-cards .fallback-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+    }
+
+    .density-cards .tab-title a {
+      min-width: 0;
+    }
+
+    .density-cards .tab-main {
+      gap: 6px;
+    }
+
+    .density-cards .tab-meta {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) repeat(3, max-content);
+      gap: 6px;
+      width: 100%;
+    }
+
+    .density-cards .tab-meta > span:not(.tab-url),
+    .density-cards .tab-meta .chip,
+    .density-cards .tab-meta .pill {
+      white-space: nowrap;
+    }
+
+    .density-cards .tab-row .chip,
+    .density-cards .tab-row .pill {
+      padding-inline: 7px;
+    }
+
+    .density-cards .tab-actions {
+      grid-column: 3;
+      justify-content: flex-start;
+    }
+
+    .empty {
+      padding: 28px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .empty strong {
+      display: block;
+      color: var(--text);
+      font-size: 16px;
+      margin-bottom: 6px;
+    }
+
+    .empty p {
+      margin: 0 auto;
+      max-width: 620px;
+      line-height: 1.5;
+    }
+
+    .empty button {
+      margin-top: 16px;
+    }
+
+    .hidden { display: none !important; }
+
+    .bulk-bar {
+      position: fixed;
+      left: 50%;
+      bottom: 16px;
+      z-index: 15;
+      translate: -50% 0;
+      margin: 0 auto;
+      width: min(860px, calc(100vw - 32px));
+      max-width: 860px;
+      border: 1px solid var(--border);
+      background: color-mix(in srgb, var(--panel) 90%, transparent);
+      backdrop-filter: blur(18px);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      padding: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .bulk-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    dialog {
+      border: 1px solid var(--border);
+      background: var(--panel);
+      color: var(--text);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+      padding: 0;
+      width: min(760px, calc(100vw - 30px));
+    }
+
+    dialog::backdrop {
+      background: rgba(0, 0, 0, .58);
+      backdrop-filter: blur(4px);
+    }
+
+    #helpDialog {
+      width: min(1120px, calc(100vw - 32px));
+      height: min(860px, calc(100vh - 32px));
+      max-height: min(860px, calc(100vh - 32px));
+      overflow: hidden;
+    }
+
+    .help-modal {
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      height: 100%;
+      max-height: 100%;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at top left, color-mix(in srgb, var(--accent) 18%, transparent), transparent 34%),
+        radial-gradient(circle at top right, color-mix(in srgb, var(--accent-2) 16%, transparent), transparent 34%),
+        var(--panel);
+    }
+
+    .help-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 20px 26px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .help-kicker {
+      margin: 0 0 7px;
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+
+    .help-header h2 {
+      margin: 0;
+      font-size: 26px;
+      letter-spacing: -.04em;
+    }
+
+    .help-subtitle {
+      max-width: 780px;
+      margin: 8px 0 0;
+      color: var(--muted);
+      line-height: 1.45;
+      font-size: 14px;
+    }
+
+    .help-close {
+      width: 34px;
+      height: 34px;
+      padding: 0;
+      flex: 0 0 auto;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: color-mix(in srgb, var(--panel-2) 84%, transparent);
+      font-size: 18px;
+      line-height: 1;
+    }
+
+    .help-body {
+      min-height: 0;
+      overflow: auto;
+      scrollbar-gutter: stable;
+      padding: 18px 26px 22px;
+      display: grid;
+      gap: 16px;
+    }
+
+    .help-quickstart {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .help-step,
+    .help-card {
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: color-mix(in srgb, var(--panel-2) 82%, transparent);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, .12);
+    }
+
+    .help-step {
+      padding: 12px;
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      gap: 10px;
+      align-items: start;
+    }
+
+    .help-step strong,
+    .help-card h3 {
+      color: var(--text);
+    }
+
+    .help-step p,
+    .help-card p {
+      margin: 4px 0 0;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    .help-number {
+      width: 28px;
+      height: 28px;
+      border-radius: 10px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #111;
+      font-weight: 850;
+    }
+
+    .help-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+      align-items: start;
+    }
+
+    .help-card {
+      padding: 16px;
+    }
+
+    .help-card h3 {
+      margin: 0 0 12px;
+      font-size: 15px;
+      letter-spacing: -.01em;
+    }
+
+    .shortcut-list,
+    .help-list {
+      display: grid;
+      gap: 8px;
+      margin: 0;
+    }
+
+    .shortcut-card,
+    .selection-card {
+      grid-column: 1 / -1;
+    }
+
+    .shortcut-list {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      column-gap: 16px;
+    }
+
+    .shortcut-item {
+      display: grid;
+      grid-template-columns: max-content minmax(0, 1fr);
+      gap: 8px;
+      align-items: start;
+      min-width: 0;
+      color: var(--muted);
+      line-height: 1.35;
+    }
+
+    .shortcut-item kbd,
+    .help-card kbd,
+    .help-chip {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: max-content;
+      max-width: 100%;
+      border: 1px solid var(--border);
+      border-bottom-color: color-mix(in srgb, var(--border) 55%, #000);
+      border-radius: 8px;
+      background: var(--panel-3);
+      color: var(--text);
+      box-shadow: inset 0 -1px 0 rgba(0, 0, 0, .16);
+      font-family: ui-monospace, "Cascadia Code", "Fira Code", Consolas, monospace;
+      font-size: 11.5px;
+      line-height: 1.2;
+      white-space: nowrap;
+    }
+
+    .shortcut-item kbd,
+    .help-card kbd {
+      padding: 5px 8px;
+    }
+
+    .help-list {
+      padding: 0;
+      list-style: none;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    .help-list li {
+      position: relative;
+      padding-left: 16px;
+    }
+
+    .help-list li::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: .72em;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+    }
+
+    .help-examples {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .help-chip {
+      padding: 6px 9px;
+      color: var(--accent);
+    }
+
+    .help-footer {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border-top: 1px solid var(--border);
+      margin-top: 2px;
+      padding-top: 16px;
+      color: var(--subtle);
+      font-size: 12.5px;
+      line-height: 1.5;
+    }
+
+    @media (max-width: 1000px) {
+      .shortcut-list {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 860px) {
+      .help-quickstart,
+      .help-grid,
+      .shortcut-list {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .help-header,
+      .help-body {
+        padding-inline: 16px;
+      }
+
+      .help-header h2 {
+        font-size: 23px;
+      }
+
+      .shortcut-item {
+        grid-template-columns: 1fr;
+        gap: 4px;
+      }
+    }
+
+    #dropDialog {
+      width: min(900px, calc(100vw - 32px));
+      max-width: 900px;
+      overflow: hidden;
+    }
+
+    .dropzone.dropzone-modal {
+      min-height: 0;
+      padding: 36px 40px 28px;
+      border: none;
+      background: transparent;
+    }
+
+    .dropzone.dropzone-modal > div {
+      width: 100%;
+    }
+
+    .dropzone.dropzone-modal h2 {
+      font-size: 26px;
+    }
+
+    .palette {
+      display: grid;
+      max-height: min(720px, 80vh);
+    }
+
+    .palette input {
+      border: 0;
+      border-bottom: 1px solid var(--border);
+      background: transparent;
+      padding: 18px;
+      outline: 0;
+      font-size: 16px;
+    }
+
+    .palette-list {
+      overflow: auto;
+      padding: 8px;
+      display: grid;
+      gap: 4px;
+      max-height: 520px;
+    }
+
+    .command-palette.palette-list {
+      max-height: min(420px, 58vh);
+    }
+
+    .palette-item {
+      border: 1px solid transparent;
+      background: transparent;
+      border-radius: 12px;
+      padding: 10px;
+      display: grid;
+      grid-template-columns: 22px minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+      text-align: left;
+    }
+
+    .palette-item.active,
+    .palette-item:hover {
+      background: var(--panel-2);
+      border-color: var(--border);
+    }
+
+    .palette-title {
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      font-weight: 650;
+    }
+
+    .palette-subtitle {
+      color: var(--muted);
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      margin-top: 2px;
+    }
+
+    .palette-empty {
+      padding: 12px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 28px;
+      z-index: 50;
+      translate: -50% 0;
+      background: linear-gradient(135deg, var(--accent), #ffd2b8);
+      color: #111;
+      font-weight: 600;
+      font-size: 13.5px;
+      border: none;
+      border-radius: 14px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, .35);
+      padding: 12px 22px;
+      text-align: center;
+      max-width: min(540px, 90vw);
+      opacity: 0;
+      transform: translateY(12px);
+      transition: opacity .2s ease, transform .2s ease;
+      pointer-events: none;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .context-menu {
+      position: fixed;
+      z-index: 60;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      padding: 6px;
+      min-width: 180px;
+    }
+
+    .context-menu button {
+      width: 100%;
+      border: 0;
+      background: transparent;
+      display: block;
+      text-align: left;
+      border-radius: 8px;
+      padding: 8px 10px;
+    }
+
+    .context-menu button:hover { background: var(--panel-2); }
+
+    .context-menu button:disabled {
+      cursor: not-allowed;
+      color: var(--subtle);
+      opacity: .55;
+    }
+
+    .context-menu button:disabled:hover { background: transparent; }
+
+    input[type="file"] { display: none; }
+
+    @media (max-width: 750px) {
+      .app {
+        height: auto;
+        overflow: visible;
+      }
+
+      main {
+        grid-template-columns: 1fr;
+        grid-template-rows: none;
+        row-gap: 16px;
+        overflow: visible;
+      }
+
+      .sidebar-resizer {
+        display: none;
+      }
+
+      aside {
+        position: static;
+        max-height: none;
+        overflow: visible;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      }
+
+      .content {
+        overflow: visible;
+        padding-right: 0;
+        scroll-padding-block: 0;
+      }
+
+      .group-toolbar {
+        top: var(--sticky-results-top, 112px);
+      }
+
+      .bulk-bar {
+        position: sticky;
+        left: auto;
+        width: auto;
+        translate: none;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .topbar { grid-template-columns: 1fr; }
+      .toolbar-actions { justify-content: flex-start; }
+      .filters {
+        grid-template-columns: 1fr;
+        grid-template-areas:
+          "sidebar"
+          "filters"
+          "search"
+          "views";
+      }
+      .filter-controls,
+      .view-controls {
+        align-items: stretch;
+      }
+      .view-controls {
+        justify-content: flex-start;
+        padding-left: 0;
+        border-left: 0;
+      }
+      .filter-controls select,
+      .view-controls select {
+        flex: 1 1 150px;
+      }
+      main { padding-inline: 10px; }
+      .tab-row { grid-template-columns: 24px 22px minmax(0, 1fr); }
+      .tab-actions { grid-column: 3; }
+      .option-grid { grid-template-columns: 1fr; gap: 42px; }
+      .option-grid::before {
+        left: 24px;
+        right: 24px;
+        top: 50%;
+        bottom: auto;
+        width: auto;
+        height: 2px;
+        transform: translateY(-50%);
+        background:
+          linear-gradient(
+            to right,
+            var(--border) 0,
+            var(--border) calc(50% - 24px),
+            transparent calc(50% - 24px),
+            transparent calc(50% + 24px),
+            var(--border) calc(50% + 24px),
+            var(--border) 100%
+          );
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      aside.sidebar-revealing,
+      aside.sidebar-collapsing {
+        animation: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="topbar">
+        <div class="brand">
+          <div class="logo">F</div>
+          <div>
+            <h1>Firefox Tabs Viewer</h1>
+            <div id="subtitle" class="subtitle">Drop your Firefox "profiles" folder here to begin.</div>
+          </div>
+        </div>
+        <div class="toolbar-actions">
+          <button id="loaderButton" class="toolbar-icon-button" type="button" aria-label="Load tabs" title="Load tabs...">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 19V5a2 2 0 0 1 2-2h5l2 3h5a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z"></path>
+              <path d="M12 16V9"></path>
+              <path d="m9 12 3-3 3 3"></path>
+            </svg>
+          </button>
+          <button id="exportJsonButton" class="toolbar-icon-button" type="button" aria-label="Export reloadable JSON" title="Export reloadable JSON..." disabled>
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M6 3h8l4 4v14H6V3Z"></path>
+              <path d="M14 3v5h5"></path>
+              <path d="M12 11v6"></path>
+              <path d="m9 14 3 3 3-3"></path>
+            </svg>
+          </button>
+          <button id="resetViewerToolbarButton" class="toolbar-icon-button" type="button" aria-label="Reset viewer" title="Reset viewer...">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 7h16"></path>
+              <path d="M10 11v6"></path>
+              <path d="M14 11v6"></path>
+              <path d="M6 7l1 14h10l1-14"></path>
+              <path d="M9 7V4h6v3"></path>
+            </svg>
+          </button>
+          <button id="themeButton" class="theme-toggle" type="button" aria-label="Switch to light theme" aria-pressed="false" title="Switch to light theme">
+            <span class="theme-toggle-track" aria-hidden="true">
+              <span class="theme-toggle-thumb"></span>
+            </span>
+          </button>
+          <button id="helpButton" type="button" class="ghost">?</button>
+        </div>
+      </div>
+      <div class="filters">
+        <button id="sidebarToggle" class="sidebar-toggle" type="button" aria-controls="sidebar" aria-expanded="false" title="Show insights" disabled>
+          <span class="insights-glyph" aria-hidden="true">✦</span>
+          <span class="sr-only">Toggle insights sidebar</span>
+        </button>
+        <div class="filter-controls" aria-label="Filters">
+          <select id="profileFilter" title="Profile filter">
+            <option value="all">All profiles</option>
+          </select>
+          <select id="containerFilter" title="Container filter">
+            <option value="all">All containers</option>
+          </select>
+          <select id="ageFilter" title="Age filter">
+            <option value="all">Any age</option>
+            <option value="today">Today</option>
+            <option value="7d">Last 7 days</option>
+            <option value="30d">Last 30 days</option>
+            <option value="1y">Last year</option>
+            <option value="gt1y">Older than 1 year</option>
+            <option value="gt2y">Older than 2 years</option>
+            <option value="unknown">Unknown access</option>
+          </select>
+          <select id="windowFilter" title="Window filter">
+            <option value="all">All windows</option>
+          </select>
+        </div>
+        <div id="searchWrap" class="search-wrap">
+          <input id="searchInput" type="search" placeholder="Search title, URL, domain, profile, or container..." autocomplete="off">
+          <span id="searchShortcutHint" class="kbd">/</span>
+          <button id="commandButton" class="command-button" type="button" aria-expanded="false" aria-controls="commandPanel" title="Open command palette (Ctrl K)">
+            Command <span class="button-kbd">Ctrl K</span>
+          </button>
+          <div id="searchAssist" class="search-assist hidden">
+            Search filters tabs by title, URL, domain, profile, or container. Use Command for quick actions.
+          </div>
+          <div id="commandPanel" class="command-panel hidden" role="dialog" aria-label="Command palette">
+            <input id="commandInput" class="command-input" type="text" placeholder="Type a command, e.g. window 2, container Work..." autocomplete="off">
+            <div id="commandPalette" class="command-palette palette-list" role="listbox" aria-label="Command suggestions"></div>
+          </div>
+        </div>
+        <div class="view-controls" aria-label="View controls">
+          <select id="groupBy" title="Group by">
+            <option value="window">Group: window</option>
+            <option value="container">Group: container</option>
+            <option value="domain">Group: domain</option>
+            <option value="age">Group: age</option>
+            <option value="flat">Flat list</option>
+          </select>
+          <select id="sortBy" title="Sort by">
+            <option value="natural">Sort: original</option>
+            <option value="accessed-desc">Newest first</option>
+            <option value="accessed-asc">Oldest first</option>
+            <option value="title">Title A-Z</option>
+            <option value="domain">Domain A-Z</option>
+          </select>
+          <select id="density" title="Density">
+            <option value="comfy">Density: comfy</option>
+            <option value="compact">Density: compact</option>
+            <option value="cards">Density: cards</option>
+          </select>
+        </div>
+      </div>
+      <div id="activeFilters" class="active-filters hidden" aria-label="Active filters and view settings"></div>
+    </header>
+
+    <main id="appMain" class="sidebar-hidden">
+      <aside id="sidebar" class="hidden">
+        <section class="card">
+          <h2>Snapshot</h2>
+          <div id="summaryStats" class="card-body stat-grid"></div>
+        </section>
+        <section class="card">
+          <h2>Containers</h2>
+          <p class="card-note">Single-select filter. Click the selected container to show all containers.</p>
+          <div id="containerStats" class="card-body list"></div>
+        </section>
+        <section class="card">
+          <h2>Age Buckets</h2>
+          <p class="card-note">Single-select filter. Click the selected age bucket to show any age.</p>
+          <div id="ageStats" class="card-body list"></div>
+        </section>
+        <section class="card">
+          <h2>Top Domains</h2>
+          <p class="card-note">Sets the Search filter. Click the selected domain to clear it.</p>
+          <div id="domainStats" class="card-body list"></div>
+        </section>
+        <section class="card">
+          <h2>Duplicates</h2>
+          <p class="card-note">Adds a duplicate URL filter that combines with Search and toolbar filters.</p>
+          <div id="duplicateStats" class="card-body list"></div>
+        </section>
+      </aside>
+
+      <div
+        id="sidebarResizer"
+        class="sidebar-resizer hidden"
+        role="separator"
+        aria-label="Resize sidebar"
+        aria-orientation="vertical"
+        aria-valuemin="260"
+        aria-valuemax="520"
+        tabindex="0"
+      ></div>
+
+      <section id="content" class="content"></section>
+    </main>
+  </div>
+
+  <div id="bulkBar" class="bulk-bar hidden">
+    <strong id="selectedCount">0 selected</strong>
+    <div class="bulk-actions">
+      <button id="openSelected" type="button">Open all</button>
+      <button id="copyUrls" type="button">Copy URLs</button>
+      <button id="copyMarkdown" type="button">Copy Markdown</button>
+      <button id="copyOnetab" type="button">Copy OneTab</button>
+      <button id="clearSelection" type="button">Clear</button>
+    </div>
+  </div>
+
+  <dialog id="helpDialog" aria-labelledby="helpTitle">
+    <div class="help-modal">
+      <div class="help-header">
+        <div>
+          <p class="help-kicker">Firefox Tabs Viewer</p>
+          <h2 id="helpTitle">Help and shortcuts</h2>
+          <p class="help-subtitle">
+            Load a Firefox profile or session file, narrow the tab list with filters or commands,<br>
+            then open, select, copy, or export reloadable tab snapshots with minimal clicks.
+          </p>
+        </div>
+        <button id="closeHelp" class="help-close" type="button" aria-label="Close help" title="Close help">&times;</button>
+      </div>
+
+      <div class="help-body">
+        <div class="help-quickstart" aria-label="Quick start">
+          <div class="help-step">
+            <span class="help-number">1</span>
+            <div>
+              <strong>Load tabs</strong>
+              <p>Drop your Firefox profiles folder or one profile folder.</p>
+            </div>
+          </div>
+          <div class="help-step">
+            <span class="help-number">2</span>
+            <div>
+              <strong>Narrow the list</strong>
+              <p>Use search, filters, grouping, sorting, density, or insights.</p>
+            </div>
+          </div>
+          <div class="help-step">
+            <span class="help-number">3</span>
+            <div>
+              <strong>Act on results</strong>
+              <p>Open tabs, select ranges, copy/export, or run commands.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="help-grid">
+          <section class="help-card shortcut-card">
+            <h3>Keyboard Shortcuts</h3>
+            <div class="shortcut-list">
+              <div class="shortcut-item"><kbd>/</kbd><span>Focus Search.</span></div>
+              <div class="shortcut-item"><kbd>Ctrl K</kbd><span>Open Command and show suggestions.</span></div>
+              <div class="shortcut-item"><kbd>?</kbd><span>Open help.</span></div>
+              <div class="shortcut-item"><kbd>j / k</kbd><span>Move active tab down or up.</span></div>
+              <div class="shortcut-item"><kbd>↓ / ↑</kbd><span>Move in list or command palette.</span></div>
+              <div class="shortcut-item"><kbd>Enter</kbd><span>Open tab or run command.</span></div>
+              <div class="shortcut-item"><kbd>x</kbd><span>Toggle active tab selection.</span></div>
+              <div class="shortcut-item"><kbd>Shift x</kbd><span>Select previous-to-current range.</span></div>
+              <div class="shortcut-item"><kbd>g g</kbd><span>Jump to first match.</span></div>
+              <div class="shortcut-item"><kbd>G</kbd><span>Jump to last match.</span></div>
+              <div class="shortcut-item"><kbd>Esc</kbd><span>Clear search, suggestions, or duplicates.</span></div>
+              <div class="shortcut-item"><kbd>Right click</kbd><span>Open row actions.</span></div>
+            </div>
+          </section>
+
+          <section class="help-card">
+            <h3>Search and Filtering</h3>
+            <ul class="help-list">
+              <li>Search matches tab title, URL, domain, Firefox profile, and container.</li>
+              <li>Toolbar filters cover profile, container, age, and window. View controls cover grouping, sorting, and density.</li>
+              <li>Insights uses the same filters: containers, age buckets, top domains, and duplicate URLs.</li>
+              <li>Active chips summarize search, filters, duplicate URL, and non-default view settings.</li>
+              <li>Use the Groups menu to expand or collapse all groups in the current grouping mode.</li>
+            </ul>
+          </section>
+
+          <section class="help-card">
+            <h3>Command Navigation</h3>
+            <p>
+              Press <kbd>Ctrl K</kbd> or click Command.<br>Type part of a command,
+              pick with <kbd>↓ / ↑</kbd>, then press <kbd>Enter</kbd>.
+            </p>
+            <div class="help-examples" aria-label="Command examples">
+              <span class="help-chip">window 2</span>
+              <span class="help-chip">container Work</span>
+              <span class="help-chip">group domain</span>
+              <span class="help-chip">sort newest</span>
+              <span class="help-chip">clear filters</span>
+              <span class="help-chip">theme</span>
+              <span class="help-chip">insights</span>
+              <span class="help-chip">export json</span>
+              <span class="help-chip">reset viewer</span>
+            </div>
+          </section>
+
+          <section class="help-card selection-card">
+            <h3>Selection and Export</h3>
+            <ul class="help-list">
+              <li>Click a row or use the keyboard to set the active tab. Double-click opens it.</li>
+              <li>Select tabs with checkboxes or <kbd>x</kbd>. Use <kbd>Shift x</kbd> for a contiguous range.</li>
+              <li>The bulk bar can open selected tabs, copy URLs, copy Markdown, or copy OneTab format.</li>
+              <li>Export JSON downloads a reloadable snapshot with favicons. Drop it back in to reload later.</li>
+              <li>Right-click a row to open, copy URL, copy title, copy Markdown, or filter by domain.</li>
+            </ul>
+          </section>
+        </div>
+
+        <div class="help-footer">
+          <span>Tip: Command searches the current filtered results, so it works as a fast jump list.</span>
+          <span>The last loaded tab list, favicons, and preferences are saved locally in this browser for refresh/reopen.</span>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="dropDialog" aria-labelledby="dropTitle">
+    <div id="dropzone" class="dropzone dropzone-modal">
+      <div>
+        <div class="drop-icon" aria-hidden="true">&#x2193;</div>
+        <h2 id="dropTitle">Load your Firefox tabs</h2>
+        <p>Review a Firefox session locally. Your files stay in this browser.</p>
+        <div class="drop-primary" aria-label="Primary load action">
+          <strong>Drag your Firefox profiles folder here</strong>
+          <span>Drop the <code>Profiles</code> folder, one profile folder, or a session restore file.</span>
+        </div>
+        <input id="folderInput" class="sr-only" type="file" webkitdirectory>
+        <input id="jsonInput" class="sr-only" type="file" accept=".json,application/json">
+        <div class="primary-load-actions secondary-import">
+          <span>Have a viewer export?</span>
+          <label class="copy-btn" for="jsonInput">Import JSON...</label>
+        </div>
+        <details class="load-help">
+          <summary>Need help finding the Firefox folder?</summary>
+          <div id="steps" class="steps"></div>
+        </details>
+      </div>
+    </div>
+  </dialog>
+
+  <div id="toast" class="toast"></div>
+
+  <script>
+    "use strict";
+
+    const DEFAULT_THEME = "dark";
+    const DEFAULT_FILTERS = Object.freeze({
+      query: "",
+      profile: "all",
+      container: "all",
+      age: "all",
+      window: "all",
+      groupBy: "window",
+      sortBy: "natural",
+      density: "comfy",
+    });
+
+    const state = {
+      tabs: [],
+      filtered: [],
+      groups: [],
+      selected: new Set(),
+      collapsed: new Set(),
+      activeIndex: -1,
+      lastSelectedIndex: null,
+      duplicateUrl: "",
+      sidebarWidth: 320,
+      sidebarOpen: true,
+      commandQuery: "",
+      commandPaletteOpen: false,
+      ggPending: false,
+      filters: { ...DEFAULT_FILTERS },
+    };
+
+    const $ = (id) => document.getElementById(id);
+
+    const els = {
+      subtitle: $("subtitle"),
+      searchWrap: $("searchWrap"),
+      searchInput: $("searchInput"),
+      searchShortcutHint: $("searchShortcutHint"),
+      searchAssist: $("searchAssist"),
+      commandButton: $("commandButton"),
+      commandPanel: $("commandPanel"),
+      commandInput: $("commandInput"),
+      commandPalette: $("commandPalette"),
+      activeFilters: $("activeFilters"),
+      loaderButton: $("loaderButton"),
+      exportJsonButton: $("exportJsonButton"),
+      sidebarToggle: $("sidebarToggle"),
+      profileFilter: $("profileFilter"),
+      containerFilter: $("containerFilter"),
+      ageFilter: $("ageFilter"),
+      windowFilter: $("windowFilter"),
+      groupBy: $("groupBy"),
+      sortBy: $("sortBy"),
+      density: $("density"),
+      main: $("appMain"),
+      sidebar: $("sidebar"),
+      sidebarResizer: $("sidebarResizer"),
+      content: $("content"),
+      dropzone: $("dropzone"),
+      summaryStats: $("summaryStats"),
+      containerStats: $("containerStats"),
+      ageStats: $("ageStats"),
+      domainStats: $("domainStats"),
+      duplicateStats: $("duplicateStats"),
+      bulkBar: $("bulkBar"),
+      selectedCount: $("selectedCount"),
+      helpDialog: $("helpDialog"),
+      dropDialog: $("dropDialog"),
+      toast: $("toast"),
+    };
+
+    const ONE_DAY = 24 * 60 * 60 * 1000;
+    const SIDEBAR_WIDTH_MIN = 260;
+    const SIDEBAR_WIDTH_MAX = 520;
+    const LAST_SNAPSHOT_KEY = "ffTabsViewerLastSnapshot";
+    const LAST_SNAPSHOT_VERSION = 1;
+    const CUSTOM_JSON_FORMAT = "firefox-tabs-viewer.custom-json";
+    const LAST_SNAPSHOT_MAX_CHARS = 4_500_000;
+    const AGE_BUCKETS = [
+      ["today", "Today"],
+      ["7d", "Last 7 days"],
+      ["30d", "Last 30 days"],
+      ["1y", "Last year"],
+      ["gt1y", "> 1 year"],
+      ["gt2y", "> 2 years"],
+      ["unknown", "Unknown"],
+    ];
+
+    const NO_CONTAINER_NAME = "No container";
+    const FIREFOX_CONTAINER_COLOR_CODES = {
+      blue: "#37adff",
+      turquoise: "#00c79a",
+      green: "#51cd00",
+      yellow: "#ffcb00",
+      orange: "#ff9f00",
+      red: "#ff613d",
+      pink: "#ff4bda",
+      purple: "#af51f5",
+      toolbar: "#7c7c7d",
+      grey: "#aab4c4",
+      gray: "#aab4c4",
+    };
+    const LEGACY_CONTAINER_COLORS = {
+      [NO_CONTAINER_NAME]: FIREFOX_CONTAINER_COLOR_CODES.grey,
+      Personal: "#4cc9f0",
+      Work: "#80ed99",
+      Banking: "#f9c74f",
+      Shopping: "#f9844a",
+      FUN: "#ff6fb5",
+      NV: "#76e05f",
+      Zero: "#62a8ff",
+    };
+    const FIREFOX_CONTAINER_ICON_MARKUP = {
+      fingerprint: '<path d="M5 6.5a3 3 0 0 1 6 0"/><path d="M4.5 9.5c.5-1 1-2 1-3a2.5 2.5 0 0 1 5 0c0 3.5-1 5-2.5 7"/><path d="M8 6.5c0 2.5-.8 4.3-2 6"/><path d="M11 9.5c-.2 1.3-.6 2.5-1.2 3.8"/>',
+      briefcase: '<path d="M5 5V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v1"/><path d="M2 5h12v8H2z"/><path d="M2 8h12"/><path d="M7 8h2"/>',
+      dollar: '<path d="M8 2v12"/><path d="M11 5a3 3 0 0 0-3-2c-2 0-3 1-3 2s1 2 3 2 3 1 3 3-1 3-3 3a4 4 0 0 1-4-2"/>',
+      cart: '<path d="M2 3h2l1.2 6.5h6.6L13.5 5H5"/><circle cx="6" cy="13" r="1"/><circle cx="12" cy="13" r="1"/>',
+      circle: '<circle cx="8" cy="8" r="5"/>',
+      gift: '<path d="M2.5 6h11v7h-11z"/><path d="M2 6h12"/><path d="M8 6v7"/><path d="M8 6c-2.5 0-3.5-1-3.5-2a1.5 1.5 0 0 1 3 0v2"/><path d="M8 6c2.5 0 3.5-1 3.5-2a1.5 1.5 0 0 0-3 0v2"/>',
+      vacation: '<path d="M3 10a5 5 0 0 1 10 0"/><path d="M8 5v8"/><path d="M2 13c1-.8 2-.8 3 0s2 .8 3 0 2-.8 3 0 2 .8 3 0"/>',
+      food: '<path d="M4 2v12"/><path d="M3 2v4"/><path d="M5 2v4"/><path d="M9.5 2c2 1.5 2.5 4 1 6l-.5.6V14"/>',
+      fruit: '<path d="M8 5c-3 0-4 2-4 4.2S5.8 14 8 14s4-2.6 4-4.8S11 5 8 5Z"/><path d="M8 5c0-1.5 1-2.5 2.5-2.5"/><path d="M8 5c-.7-1-1.7-1.4-3-1.2"/>',
+      pet: '<circle cx="5" cy="6" r="1"/><circle cx="8" cy="4.5" r="1"/><circle cx="11" cy="6" r="1"/><path d="M5 11c0-2 1.4-3.5 3-3.5s3 1.5 3 3c0 1-1 1.5-3 1.5s-3-.3-3-1Z"/>',
+      tree: '<path d="M8 2 3 8h3l-2 3h3v3h2v-3h3l-2-3h3L8 2Z"/>',
+      chill: '<path d="M8 2v12"/><path d="M3 5.5 13 10.5"/><path d="M13 5.5 3 10.5"/><path d="m6 3.5 2 2 2-2"/><path d="m6 12.5 2-2 2 2"/>',
+      fence: '<path d="M3 6h10"/><path d="M3 10h10"/><path d="M4 3l-1 2v9"/><path d="M8 3 7 5v9"/><path d="M12 3l-1 2v9"/>',
+    };
+
+    let sidebarVisibilityTimer = null;
+    let searchInputTimer = null;
+
+    function init() {
+      restorePreferences();
+      applySidebarWidth();
+      applySidebarVisibility();
+      bindEvents();
+      applyControlsFromState();
+      syncStickyResultsTop();
+      renderOsHint();
+      if (!restoreLastSnapshot({ silent: true })) openDropDialog();
+    }
+
+    function syncStickyResultsTop() {
+      const headerHeight = document.querySelector("header")?.getBoundingClientRect().height || 0;
+      document.documentElement.style.setProperty("--sticky-results-top", `${Math.ceil(headerHeight) + 8}px`);
+    }
+
+    function setLoadStatus(message) {
+      els.subtitle.textContent = message;
+      syncStickyResultsTop();
+    }
+
+    function openDropDialog() {
+      if (state.tabs.length) return;
+      openLoaderDialog();
+    }
+
+    function openLoaderDialog() {
+      if (!els.dropDialog) return;
+      if (!els.dropDialog.open) {
+        try { els.dropDialog.showModal(); }
+        catch (_) { els.dropDialog.setAttribute("open", ""); }
+      }
+    }
+
+    function closeDropDialog() {
+      if (!state.tabs.length) return;
+      if (els.dropDialog?.open) {
+        try { els.dropDialog.close(); } catch (_) {}
+      }
+    }
+
+    function detectOs() {
+      const platform =
+        navigator.userAgentData?.platform ||
+        navigator.platform ||
+        navigator.userAgent ||
+        "";
+      const s = platform.toLowerCase();
+      if (s.includes("win")) return "windows";
+      if (s.includes("mac") || s.includes("darwin")) return "macos";
+      if (s.includes("linux") || s.includes("x11") || s.includes("bsd")) return "linux";
+      return "unknown";
+    }
+
+    const WIN_KEY = { icon: "win", label: "Win" };
+    const CMD_KEY = { icon: "cmd", label: "\u2318" };
+
+    const FIREFOX_PATHS = {
+      windows: {
+        label: "Windows",
+        path: "%APPDATA%\\Mozilla\\Firefox",
+        openApp: "File Explorer",
+        openShortcut: [WIN_KEY, "E"],
+        addressBarShortcut: ["Ctrl", "L"],
+        pasteShortcut: ["Ctrl", "V"],
+        enterKey: "Enter",
+      },
+      macos: {
+        label: "macOS",
+        path: "~/Library/Application Support/Firefox",
+        openApp: "Finder",
+        openShortcut: null,
+        addressBarShortcut: [CMD_KEY, "Shift", "G"],
+        pasteShortcut: [CMD_KEY, "V"],
+        enterKey: "Return",
+      },
+      linux: {
+        label: "Linux",
+        path: "~/.mozilla/firefox",
+        openApp: "your file manager",
+        openShortcut: null,
+        addressBarShortcut: ["Ctrl", "L"],
+        pasteShortcut: ["Ctrl", "V"],
+        enterKey: "Enter",
+      },
+    };
+
+    function renderOsHint() {
+      const stepsEl = $("steps");
+      if (!stepsEl) return;
+
+      const os = detectOs();
+      const entry = FIREFOX_PATHS[os];
+      if (!entry) {
+        stepsEl.replaceChildren(
+          step(1,
+            htmlFrag(`<strong>Choose your platform's typical Firefox folder path...</strong>`, platformPathNodes(Object.values(FIREFOX_PATHS))),
+            null
+          )
+        );
+        return;
+      }
+
+      const otherOses = Object.entries(FIREFOX_PATHS).filter(([key]) => key !== os).map(([, value]) => value);
+      stepsEl.replaceChildren(
+        step(1,
+          htmlFrag(`<strong>Copy the typical path to the folder...</strong>`, [
+            pathPill(entry.path),
+            otherPlatformHint(otherOses),
+          ]),
+          copyButton(entry.path)
+        ),
+        step(2,
+          htmlFrag(`<strong>Drag the Firefox folder here...</strong>`, buildDragInstructions(entry)),
+          null
+        ),
+        step(3,
+          htmlFrag(`<strong>If drag-and-drop fails, try Browse...</strong>`, buildBrowseInstructions(entry)),
+          browseButton()
+        )
+      );
+    }
+
+    function platformPathNodes(entries) {
+      return entries.flatMap((entry, index) => {
+        const label = document.createElement("strong");
+        label.className = "platform-label";
+        label.textContent = entry.label;
+        return [
+          ...(index ? [document.createTextNode(" ")] : []),
+          label,
+          document.createTextNode(" "),
+          codeNode(entry.path),
+        ];
+      });
+    }
+
+    function otherPlatformHint(entries) {
+      const hint = document.createElement("div");
+      hint.className = "other-platforms";
+      hint.append(document.createTextNode("Also: "), ...platformPathNodes(entries));
+      return hint;
+    }
+
+    function step(num, body, action) {
+      const node = document.createElement("div");
+      node.className = "step";
+      const numEl = document.createElement("div");
+      numEl.className = "step-num";
+      numEl.textContent = String(num);
+      const bodyEl = document.createElement("div");
+      bodyEl.className = "step-body";
+      bodyEl.append(...body);
+      node.append(numEl, bodyEl);
+      if (action) node.append(action); else node.append(document.createElement("span"));
+      return node;
+    }
+
+    function htmlFrag(headerHtml, extraNodes) {
+      const header = document.createElement("div");
+      header.innerHTML = headerHtml;
+      const detail = document.createElement("div");
+      detail.append(...extraNodes);
+      return [header, detail];
+    }
+
+    function pathPill(path) {
+      const code = document.createElement("span");
+      code.className = "path";
+      code.textContent = path;
+      return code;
+    }
+
+    function copyButton(path) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "copy-btn";
+      btn.textContent = "Copy path";
+      btn.addEventListener("click", () => {
+        navigator.clipboard.writeText(path)
+          .then(() => {
+            btn.textContent = "Copied";
+            showToast(`Copied: ${path}`);
+            setTimeout(() => { btn.textContent = "Copy path"; }, 1600);
+          })
+          .catch(() => showToast("Copy failed; select and copy the path manually."));
+      });
+      return btn;
+    }
+
+    function browseButton() {
+      const label = document.createElement("label");
+      label.className = "copy-btn";
+      label.setAttribute("for", "folderInput");
+      label.textContent = "Browse fallback...";
+      return label;
+    }
+
+    function shortcutSpan(keys) {
+      const span = document.createElement("span");
+      span.className = "shortcut-group";
+      if (!keys) {
+        span.textContent = "the keyboard shortcut for the address bar";
+        return span;
+      }
+      keys.forEach((key, i) => {
+        if (i > 0) span.append(document.createTextNode("+"));
+        span.append(keyChip(key));
+      });
+      return span;
+    }
+
+    function keyChip(key) {
+      const kbd = document.createElement("span");
+      kbd.className = "shortcut";
+      if (typeof key === "object" && key.icon === "win") {
+        kbd.append(winKeyIcon(), document.createTextNode(" Win"));
+        kbd.classList.add("shortcut-with-icon");
+      } else if (typeof key === "object" && key.icon === "cmd") {
+        kbd.textContent = "\u2318";
+      } else {
+        kbd.textContent = key;
+      }
+      return kbd;
+    }
+
+    function winKeyIcon() {
+      const ns = "http://www.w3.org/2000/svg";
+      const svg = document.createElementNS(ns, "svg");
+      svg.setAttribute("viewBox", "0 0 88 88");
+      svg.setAttribute("aria-hidden", "true");
+      svg.setAttribute("class", "win-logo");
+      const quads = [[8, 8], [48, 8], [8, 48], [48, 48]];
+      for (const [x, y] of quads) {
+        const r = document.createElementNS(ns, "rect");
+        r.setAttribute("x", x);
+        r.setAttribute("y", y);
+        r.setAttribute("width", "32");
+        r.setAttribute("height", "32");
+        r.setAttribute("fill", "currentColor");
+        svg.append(r);
+      }
+      return svg;
+    }
+
+    function buildDragInstructions(entry) {
+      const enterLabel = entry.enterKey || "Enter";
+      const lines = [];
+
+      if (entry.openShortcut) {
+        lines.push(instructionLine(
+          document.createTextNode("Press "),
+          shortcutSpan(entry.openShortcut),
+          document.createTextNode(",")
+        ));
+      }
+
+      lines.push(
+        instructionLine(
+          document.createTextNode(entry.openShortcut ? "then press " : "Press "),
+          shortcutSpan(entry.addressBarShortcut),
+          document.createTextNode(", then "),
+          shortcutSpan(entry.pasteShortcut),
+          document.createTextNode(",")
+        ),
+        instructionLine(
+          document.createTextNode("followed by the "),
+          shortcutSpan([enterLabel]),
+          document.createTextNode(" key.")
+        ),
+        instructionSpacer(),
+        instructionLine(
+          document.createTextNode("Then drag the "),
+          codeNode("Profiles"),
+          document.createTextNode(" folder here.")
+        )
+      );
+
+      return lines;
+    }
+
+    function buildBrowseInstructions(entry) {
+      const enterLabel = entry.enterKey || "Enter";
+      return [
+        instructionLine(document.createTextNode("Browse can take a long time because the browser scans the selected folder first.")),
+        instructionSpacer(),
+        instructionLine(document.createTextNode("Click Browse,")),
+        instructionLine(
+          document.createTextNode("then press "),
+          shortcutSpan(entry.addressBarShortcut),
+          document.createTextNode(", then "),
+          shortcutSpan(entry.pasteShortcut),
+          document.createTextNode(",")
+        ),
+        instructionLine(
+          document.createTextNode("followed by the "),
+          shortcutSpan([enterLabel]),
+          document.createTextNode(" key.")
+        ),
+        instructionSpacer(),
+        instructionLine(
+          document.createTextNode("Select the "),
+          codeNode("Profiles"),
+          document.createTextNode(" folder.")
+        )
+      ];
+    }
+
+    function keyboardSequence(entry, { includeOpenShortcut, lowercaseStart = false } = {}) {
+      const nodes = [];
+      const enterLabel = entry.enterKey || "Enter";
+      const firstVerb = lowercaseStart ? "press " : "Press ";
+
+      if (includeOpenShortcut && entry.openShortcut) {
+        nodes.push(
+          document.createTextNode("Press "),
+          shortcutSpan(entry.openShortcut),
+          document.createTextNode(", then press "),
+          shortcutSpan(entry.addressBarShortcut),
+          document.createTextNode(", then "),
+          shortcutSpan(entry.pasteShortcut),
+          document.createTextNode(", followed by the "),
+          shortcutSpan([enterLabel]),
+          document.createTextNode(" key.")
+        );
+      } else {
+        nodes.push(
+          document.createTextNode(firstVerb),
+          shortcutSpan(entry.addressBarShortcut),
+          document.createTextNode(", then "),
+          shortcutSpan(entry.pasteShortcut),
+          document.createTextNode(", followed by the "),
+          shortcutSpan([enterLabel]),
+          document.createTextNode(" key.")
+        );
+      }
+      return nodes;
+    }
+
+    function codeNode(text) {
+      const code = document.createElement("code");
+      code.textContent = text;
+      return code;
+    }
+
+    function instructionLine(...nodes) {
+      const line = document.createElement("span");
+      line.className = "instruction-line";
+      line.append(...nodes);
+      return line;
+    }
+
+    function instructionSpacer() {
+      const spacer = document.createElement("span");
+      spacer.className = "instruction-spacer";
+      return spacer;
+    }
+
+    function bindEvents() {
+      for (const eventName of ["dragenter", "dragover"]) {
+        document.addEventListener(eventName, (event) => {
+          event.preventDefault();
+          $("dropzone")?.classList.add("dragover");
+        });
+      }
+
+      for (const eventName of ["dragleave", "drop"]) {
+        document.addEventListener(eventName, (event) => {
+          event.preventDefault();
+          $("dropzone")?.classList.remove("dragover");
+        });
+      }
+
+      els.dropDialog?.addEventListener("cancel", (event) => {
+        if (!state.tabs.length) event.preventDefault();
+      });
+      els.dropDialog?.addEventListener("close", () => {
+        if (!state.tabs.length) requestAnimationFrame(openLoaderDialog);
+      });
+
+      document.addEventListener("drop", async (event) => {
+        const entry = event.dataTransfer?.items?.[0]?.webkitGetAsEntry?.();
+        if (entry?.isDirectory) {
+          setLoadStatus("Scanning dropped Firefox folder...");
+          await scanDroppedDirectory(entry);
+          return;
+        }
+        const file = event.dataTransfer?.files?.[0];
+        if (file) loadFile(file);
+      });
+
+      $("folderInput")?.addEventListener("change", async (event) => {
+        const files = event.target.files;
+        if (files?.length) {
+          setLoadStatus("Scanning selected folder...");
+          await scanFolderInput(files);
+        }
+        event.target.value = "";
+      });
+      $("jsonInput")?.addEventListener("change", (event) => {
+        const file = event.target.files?.[0];
+        if (file) loadFile(file);
+        event.target.value = "";
+      });
+
+      els.sidebarToggle.addEventListener("click", toggleSidebar);
+
+      els.searchInput.addEventListener("focus", () => {
+        syncSearchAssist();
+      });
+      els.searchInput.addEventListener("input", handleSearchInput);
+      els.searchInput.addEventListener("keydown", handleSearchInputKeydown);
+      els.commandButton.addEventListener("click", () => openCommandPalette({ focus: true, select: true }));
+      els.commandInput.addEventListener("input", handleCommandInput);
+      els.commandInput.addEventListener("keydown", handleCommandKeydown);
+      els.searchWrap.addEventListener("focusout", () => {
+        setTimeout(() => {
+          if (!els.searchWrap.contains(document.activeElement)) {
+            closeCommandPalette();
+          }
+        }, 0);
+      });
+
+      for (const [element, key] of [
+        [els.profileFilter, "profile"],
+        [els.containerFilter, "container"],
+        [els.ageFilter, "age"],
+        [els.windowFilter, "window"],
+        [els.groupBy, "groupBy"],
+        [els.sortBy, "sortBy"],
+        [els.density, "density"],
+      ]) {
+        element.addEventListener("change", () => {
+          const previousValue = state.filters[key];
+          state.filters[key] = element.value;
+          if (key === "groupBy" && element.value !== previousValue) state.collapsed.clear();
+          if (key === "density") {
+            document.body.classList.toggle("density-compact", element.value === "compact");
+            document.body.classList.toggle("density-cards", element.value === "cards");
+          }
+          state.activeIndex = -1;
+          savePreferences();
+          syncHash();
+          render();
+        });
+      }
+
+      els.loaderButton.addEventListener("click", openLoaderDialog);
+      els.exportJsonButton.addEventListener("click", exportReloadableJson);
+      $("resetViewerToolbarButton")?.addEventListener("click", resetViewerData);
+      $("themeButton").addEventListener("click", toggleTheme);
+      $("helpButton").addEventListener("click", () => {
+        if (!els.helpDialog.open) els.helpDialog.showModal();
+      });
+      $("closeHelp").addEventListener("click", () => els.helpDialog.close());
+
+      $("openSelected").addEventListener("click", openSelected);
+      $("copyUrls").addEventListener("click", () => copySelected("urls"));
+      $("copyMarkdown").addEventListener("click", () => copySelected("markdown"));
+      $("copyOnetab").addEventListener("click", () => copySelected("onetab"));
+      $("clearSelection").addEventListener("click", () => {
+        state.selected.clear();
+        render();
+      });
+      bindSidebarResizer();
+
+      document.addEventListener("keydown", handleKeydown);
+      document.addEventListener("click", () => closeContextMenu());
+      window.addEventListener("hashchange", applyHash);
+      window.addEventListener("resize", syncStickyResultsTop);
+      applyHash();
+    }
+
+    function loadFile(file) {
+      if (file.name.toLowerCase().endsWith(".json")) {
+        setLoadStatus(`Reading ${file.name}...`);
+        const reader = new FileReader();
+        reader.onload = () => {
+          if (loadJsonText(String(reader.result || ""), file.name)) showToast("Reloadable JSON imported.");
+        };
+        reader.onerror = () => showToast(`Could not read ${file.name}`);
+        reader.readAsText(file);
+        return;
+      }
+
+      if (!file.name.endsWith(".jsonlz4")) {
+        showToast("Drop a .json, .jsonlz4, or Firefox folder.");
+        return;
+      }
+      setLoadStatus(`Reading ${file.name}...`);
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          setLoadStatus(`Decoding ${file.name}...`);
+          const sessionData = JSON.parse(decodeMozLz4(reader.result));
+          const wrapped = {
+            timestamp_utc: new Date().toISOString().replace(/[-:]|\.\d{3}/g, ""),
+            profiles: [{
+              profile: "imported",
+              profile_path: "",
+              session_file: file.name,
+              windows: extractSessionTabs(sessionData, {}),
+            }],
+          };
+          loadJsonText(JSON.stringify(wrapped), file.name);
+          showToast("Session imported.");
+        } catch (error) {
+          showToast(`Failed to decode ${file.name}: ${error.message}`);
+        }
+      };
+      reader.onerror = () => showToast(`Could not read ${file.name}`);
+      reader.readAsArrayBuffer(file);
+    }
+
+    function loadJsonText(text, filename) {
+      try {
+        const payload = normalizeImportPayload(JSON.parse(text), filename);
+        loadParsedData(payload.data, payload.filename, { saveLast: true });
+        return true;
+      } catch (error) {
+        showToast(`Invalid JSON: ${error.message}`);
+        return false;
+      }
+    }
+
+    function loadParsedData(parsed, filename, options = {}) {
+      state.tabs = normalize(parsed);
+      state.selected.clear();
+      state.collapsed.clear();
+      state.activeIndex = -1;
+      state.lastSelectedIndex = null;
+      state.duplicateUrl = "";
+      state.sidebarOpen = state.tabs.length > 0;
+      state.commandQuery = "";
+      state.commandPaletteOpen = false;
+      populateFilters();
+      setInputMode("search");
+      applySidebarVisibility({ animate: true });
+      applySidebarWidth();
+      closeDropDialog();
+      const summary = describeSnapshot(parsed, filename, state.tabs);
+      els.subtitle.textContent = options.restored ? `Restored ${summary}` : summary;
+      els.exportJsonButton.disabled = !state.tabs.length;
+      render();
+      if (options.saveLast) saveLastSnapshot(parsed, filename, state.tabs);
+    }
+
+    async function scanFolderInput(fileList) {
+      setLoadStatus("Looking for Firefox session files...");
+      const files = Array.from(fileList).filter((file) => {
+        const name = file.name;
+        return (
+          name === "profiles.ini" ||
+          name === "containers.json" ||
+          name === "recovery.jsonlz4" ||
+          name === "previous.jsonlz4" ||
+          name === "sessionstore.jsonlz4"
+        );
+      });
+
+      if (!files.length) {
+        showToast("No Firefox data found in the selected folder.");
+        return;
+      }
+
+      const byPath = new Map();
+      let rootPrefix = null;
+      for (const file of files) {
+        const path = file.webkitRelativePath;
+        byPath.set(path, file);
+        const first = path.split("/")[0];
+        if (rootPrefix === null) rootPrefix = first;
+        else if (rootPrefix !== first) rootPrefix = "";
+      }
+
+      const read = (path, mode) => {
+        const file = byPath.get(path);
+        if (!file) return Promise.reject(new Error("missing: " + path));
+        return mode === "arraybuffer"
+          ? readFileAsArrayBuffer(file)
+          : readFileAsText(file);
+      };
+
+      const allProfiles = [];
+      const iniPath = (rootPrefix ? rootPrefix + "/" : "") + "profiles.ini";
+      const iniFile = byPath.get(iniPath);
+
+      if (iniFile) {
+        setLoadStatus("Reading Firefox profiles...");
+        let iniText = "";
+        try { iniText = await readFileAsText(iniFile); } catch (_) {}
+        const prefix = rootPrefix ? rootPrefix + "/" : "";
+        for (const { name, path } of parseProfilesIniPaths(iniText)) {
+          setLoadStatus(`Decoding profile ${name}...`);
+          const profile = await tryReadProfileFromMap(read, prefix + path, name);
+          if (profile) allProfiles.push(profile);
+        }
+      }
+
+      if (!allProfiles.length) {
+        setLoadStatus("Searching profile folders...");
+        const profileDirs = new Set();
+        for (const path of byPath.keys()) {
+          const parts = path.split("/");
+          const sbIdx = parts.lastIndexOf("sessionstore-backups");
+          if (sbIdx >= 1) profileDirs.add(parts.slice(0, sbIdx).join("/"));
+        }
+        for (const dir of profileDirs) {
+          const name = dir.split("/").pop() || dir;
+          setLoadStatus(`Decoding profile ${name}...`);
+          const profile = await tryReadProfileFromMap(read, dir, name);
+          if (profile) allProfiles.push(profile);
+        }
+      }
+
+      if (!allProfiles.length) {
+        showToast("Could not decode any session files in the selected folder.");
+        return;
+      }
+
+      setLoadStatus("Building tab list...");
+      loadJsonText(JSON.stringify({
+        timestamp_utc: new Date().toISOString().replace(/[-:]|\.\d{3}/g, ""),
+        profiles: allProfiles,
+      }), `Firefox scan (${allProfiles.length} profile(s))`);
+
+      const totalTabs = allProfiles.reduce((sum, p) =>
+        sum + p.windows.reduce((s, w) => s + w.length, 0), 0);
+      showToast(`Found ${totalTabs} tab(s) across ${allProfiles.length} profile(s).`);
+    }
+
+    async function tryReadProfileFromMap(read, profileDir, profileName) {
+      const prefix = profileDir ? profileDir + "/" : "";
+      const candidates = [
+        prefix + "sessionstore-backups/recovery.jsonlz4",
+        prefix + "sessionstore-backups/previous.jsonlz4",
+        prefix + "sessionstore.jsonlz4",
+      ];
+
+      let sessionData = null;
+      let sessionFile = null;
+      for (const path of candidates) {
+        try {
+          const buf = await read(path, "arraybuffer");
+          sessionData = JSON.parse(decodeMozLz4(buf));
+          sessionFile = path;
+          break;
+        } catch (_) { continue; }
+      }
+      if (!sessionData) return null;
+
+      let containerMap = {};
+      try {
+        const text = await read(prefix + "containers.json", "text");
+        containerMap = parseContainersJson(text);
+      } catch (_) {}
+
+      return {
+        profile: profileName,
+        profile_path: profileDir,
+        session_file: sessionFile,
+        windows: extractSessionTabs(sessionData, containerMap),
+      };
+    }
+
+    function readFileAsText(file) {
+      return new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(r.result);
+        r.onerror = () => reject(new Error("Could not read " + file.name));
+        r.readAsText(file);
+      });
+    }
+
+    function readFileAsArrayBuffer(file) {
+      return new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(r.result);
+        r.onerror = () => reject(new Error("Could not read " + file.name));
+        r.readAsArrayBuffer(file);
+      });
+    }
+
+    async function scanDroppedDirectory(dirEntry) {
+      setLoadStatus("Reading Firefox profiles...");
+      let iniText = null;
+      try {
+        iniText = await readFileFromEntry(dirEntry, "profiles.ini", "text");
+      } catch (_) {}
+
+      const allProfiles = [];
+
+      if (iniText) {
+        for (const { name, path } of parseProfilesIniPaths(iniText)) {
+          setLoadStatus(`Decoding profile ${name}...`);
+          const profile = await tryReadProfile(dirEntry, path, name);
+          if (profile) allProfiles.push(profile);
+        }
+      }
+
+      if (!allProfiles.length) {
+        setLoadStatus(`Decoding profile ${dirEntry.name}...`);
+        const profile = await tryReadProfile(dirEntry, ".", dirEntry.name);
+        if (profile) allProfiles.push(profile);
+      }
+
+      if (!allProfiles.length) {
+        try {
+          setLoadStatus("Searching profile folders...");
+          const children = await listDirectChildren(dirEntry);
+          for (const child of children) {
+            if (!child.isDirectory) continue;
+            setLoadStatus(`Decoding profile ${child.name}...`);
+            const profile = await tryReadProfile(dirEntry, child.name, child.name);
+            if (profile) allProfiles.push(profile);
+          }
+        } catch (_) {}
+      }
+
+      if (!allProfiles.length) {
+        showToast("No Firefox session files found in the dropped folder.");
+        return;
+      }
+
+      const wrapped = {
+        timestamp_utc: new Date().toISOString().replace(/[-:]|\.\d{3}/g, ""),
+        profiles: allProfiles,
+      };
+      setLoadStatus("Building tab list...");
+      loadJsonText(JSON.stringify(wrapped), `Firefox scan (${allProfiles.length} profile(s))`);
+
+      const totalTabs = allProfiles.reduce((sum, p) =>
+        sum + p.windows.reduce((s, w) => s + w.length, 0), 0);
+      showToast(`Found ${totalTabs} tab(s) across ${allProfiles.length} profile(s).`);
+    }
+
+    async function tryReadProfile(rootEntry, profilePath, profileName) {
+      const prefix = profilePath === "." ? "" : profilePath + "/";
+      const candidates = [
+        prefix + "sessionstore-backups/recovery.jsonlz4",
+        prefix + "sessionstore-backups/previous.jsonlz4",
+        prefix + "sessionstore.jsonlz4",
+      ];
+      if (!prefix) {
+        candidates.push("recovery.jsonlz4", "previous.jsonlz4");
+      }
+
+      let sessionData = null;
+      let sessionFile = null;
+      for (const path of candidates) {
+        try {
+          const buf = await readFileFromEntry(rootEntry, path, "arraybuffer");
+          sessionData = JSON.parse(decodeMozLz4(buf));
+          sessionFile = path;
+          break;
+        } catch (_) { continue; }
+      }
+      if (!sessionData) return null;
+
+      let containerMap = {};
+      try {
+        const text = await readFileFromEntry(rootEntry, prefix + "containers.json", "text");
+        containerMap = parseContainersJson(text);
+      } catch (_) {}
+
+      return {
+        profile: profileName,
+        profile_path: profilePath,
+        session_file: sessionFile,
+        windows: extractSessionTabs(sessionData, containerMap),
+      };
+    }
+
+    function readFileFromEntry(dirEntry, path, mode) {
+      const clean = path.replace(/^\.\//, "");
+      return new Promise((resolve, reject) => {
+        dirEntry.getFile(clean, {}, (fileEntry) => {
+          fileEntry.file((file) => {
+            const r = new FileReader();
+            r.onload = () => resolve(r.result);
+            r.onerror = () => reject(r.error);
+            if (mode === "arraybuffer") r.readAsArrayBuffer(file);
+            else r.readAsText(file);
+          }, reject);
+        }, reject);
+      });
+    }
+
+    function listDirectChildren(dirEntry) {
+      return new Promise((resolve) => {
+        const reader = dirEntry.createReader();
+        const entries = [];
+        (function read() {
+          reader.readEntries((batch) => {
+            if (!batch.length) { resolve(entries); return; }
+            entries.push(...batch);
+            read();
+          }, () => resolve(entries));
+        })();
+      });
+    }
+
+    function parseProfilesIniPaths(text) {
+      const profiles = [];
+      let section = null;
+      let data = {};
+      function save() {
+        if (section?.startsWith("Profile") && data.Path && data.IsRelative !== "0") {
+          profiles.push({ name: data.Name || section, path: data.Path.replace(/\\/g, "/") });
+        }
+      }
+      for (const raw of text.split(/\r?\n/)) {
+        const line = raw.trim();
+        if (!line || line.startsWith("#") || line.startsWith(";")) continue;
+        const m = line.match(/^\[(.+)\]$/);
+        if (m) { save(); section = m[1]; data = {}; continue; }
+        const eq = line.indexOf("=");
+        if (eq > 0) data[line.slice(0, eq)] = line.slice(eq + 1);
+      }
+      save();
+      return profiles;
+    }
+
+    function decodeMozLz4(buffer) {
+      const bytes = new Uint8Array(buffer);
+      if (bytes.length < 12) throw new Error("File too small to be a .jsonlz4 file");
+      const magic = String.fromCharCode(...bytes.slice(0, 8));
+      if (magic !== "mozLz40\0") {
+        throw new Error("Not a Firefox .jsonlz4 file (missing mozLz40 header)");
+      }
+      const view = new DataView(buffer);
+      const uncompressedSize = view.getUint32(8, true);
+      if (uncompressedSize === 0 || uncompressedSize > 256 * 1024 * 1024) {
+        throw new Error(`Unexpected uncompressed size: ${uncompressedSize}`);
+      }
+      return new TextDecoder().decode(
+        decompressLz4Block(bytes.subarray(12), uncompressedSize)
+      );
+    }
+
+    function decompressLz4Block(input, outLen) {
+      const out = new Uint8Array(outLen);
+      let ip = 0, op = 0;
+      while (ip < input.length) {
+        const token = input[ip++];
+        let litLen = token >> 4;
+        if (litLen === 15) {
+          let b;
+          do { b = input[ip++]; litLen += b; } while (b === 255);
+        }
+        out.set(input.subarray(ip, ip + litLen), op);
+        ip += litLen;
+        op += litLen;
+        if (ip >= input.length) break;
+        const offset = input[ip] | (input[ip + 1] << 8);
+        ip += 2;
+        let matchLen = (token & 0x0f) + 4;
+        if ((token & 0x0f) === 15) {
+          let b;
+          do { b = input[ip++]; matchLen += b; } while (b === 255);
+        }
+        let src = op - offset;
+        for (let i = 0; i < matchLen; i++) out[op++] = out[src++];
+      }
+      return out;
+    }
+
+    const DEFAULT_CONTAINER_NAMES = {
+      "userContextPersonal.label": "Personal",
+      "userContextWork.label": "Work",
+      "userContextFinance.label": "Banking",
+      "userContextShopping.label": "Shopping",
+    };
+
+    function parseContainersJson(text) {
+      const data = JSON.parse(text);
+      const mapping = {};
+      for (const identity of (data.identities || [])) {
+        const ctxId = identity.userContextId;
+        if (ctxId == null || !identity.public) continue;
+        mapping[ctxId] = normalizeContainerMetadata({
+          id: ctxId,
+          name: identity.name
+            || DEFAULT_CONTAINER_NAMES[identity.l10nID || ""]
+            || `Container #${ctxId}`,
+          color: identity.color,
+          colorCode: identity.colorCode,
+          icon: identity.icon,
+        }, ctxId);
+      }
+      return mapping;
+    }
+
+    function extractSessionTabs(sessionData, containerMap) {
+      const windowsOut = [];
+      for (const win of (sessionData.windows || [])) {
+        const tabsOut = [];
+        for (const tab of (win.tabs || [])) {
+          const entries = tab.entries || [];
+          if (!entries.length) continue;
+          let idx = (tab.index || entries.length) - 1;
+          if (idx < 0 || idx >= entries.length) idx = entries.length - 1;
+          const entry = entries[idx];
+          const ctxId = tab.userContextId || 0;
+          const container = ctxId
+            ? normalizeContainerMetadata(containerMap[ctxId] || { id: ctxId, name: `Container #${ctxId}` }, ctxId)
+            : normalizeContainerMetadata(null);
+          tabsOut.push({
+            title: entry.title || "(no title)",
+            url: entry.url || "",
+            lastAccessed: tab.lastAccessed || null,
+            image: tab.image || "",
+            container,
+          });
+        }
+        windowsOut.push(tabsOut);
+      }
+      return windowsOut;
+    }
+
+    function normalize(data) {
+      const tabs = [];
+      const profiles = Array.isArray(data?.profiles) ? data.profiles : [];
+      profiles.forEach((profile, profileIndex) => {
+        const windows = Array.isArray(profile.windows) ? profile.windows : [];
+        windows.forEach((windowTabs, windowIndex) => {
+          const safeWindowTabs = Array.isArray(windowTabs) ? windowTabs : [];
+          safeWindowTabs.forEach((tab, tabIndex) => {
+            const url = String(tab.url || "");
+            const title = String(tab.title || "(no title)");
+            const container = normalizeContainerMetadata(tab.container);
+            const containerName = container.name;
+            const lastAccessed = Number.isFinite(Number(tab.lastAccessed)) ? Number(tab.lastAccessed) : null;
+            const domain = domainFromUrl(url);
+            const profileName = String(profile.profile || `Profile ${profileIndex + 1}`);
+            tabs.push({
+              id: `${profileIndex + 1}:${windowIndex + 1}:${tabIndex + 1}`,
+              profile: profileName,
+              profileIndex,
+              windowIndex,
+              windowNumber: windowIndex + 1,
+              tabIndex,
+              tabNumber: tabIndex + 1,
+              title,
+              url,
+              domain,
+              lastAccessed,
+              image: String(tab.image || ""),
+              container,
+              searchText: `${title} ${url} ${domain} ${profileName} ${containerName} ${container.color} ${container.icon}`.toLowerCase(),
+            });
+          });
+        });
+      });
+      return tabs;
+    }
+
+    function describeSnapshot(data, filename, tabs) {
+      const profileCount = Array.isArray(data?.profiles) ? data.profiles.length : 0;
+      const windowCount = Array.isArray(data?.profiles)
+        ? data.profiles.reduce((sum, profile) => sum + (profile.windows?.length || 0), 0)
+        : 0;
+      return `${filename} - ${tabs.length} tabs across ${windowCount} windows in ${profileCount} profile${profileCount === 1 ? "" : "s"}`;
+    }
+
+    function populateFilters() {
+      replaceOptions(els.profileFilter, [
+        ["all", "All profiles"],
+        ...uniqueSorted(state.tabs.map((tab) => tab.profile)).map((name) => [name, name]),
+      ], state.filters.profile);
+
+      replaceOptions(els.containerFilter, [
+        ["all", "All containers"],
+        ...uniqueSorted(state.tabs.map((tab) => tab.container.name)).map((name) => [name, name]),
+      ], state.filters.container);
+
+      replaceOptions(els.windowFilter, [
+        ["all", "All windows"],
+        ...uniqueSorted(state.tabs.map((tab) => String(tab.windowNumber)), true)
+          .map((number) => [number, `Window ${number}`]),
+      ], state.filters.window);
+    }
+
+    function replaceOptions(select, options, currentValue) {
+      select.replaceChildren(...options.map(([value, label]) => {
+        const option = document.createElement("option");
+        option.value = value;
+        option.textContent = label;
+        return option;
+      }));
+      select.value = options.some(([value]) => value === currentValue) ? currentValue : "all";
+      const key = select.id.replace("Filter", "");
+      if (key in state.filters) state.filters[key] = select.value;
+    }
+
+    function render() {
+      if (!state.tabs.length) {
+        state.filtered = [];
+        state.groups = [];
+        els.content.replaceChildren();
+        clearSidebar();
+        renderBulkBar();
+        renderActiveFilters();
+        syncSearchAssist();
+        applySidebarVisibility();
+        return;
+      }
+      state.filtered = sortTabs(filterTabs(state.tabs));
+      state.groups = buildGroups(state.filtered);
+      renderGroups();
+      renderSidebar();
+      renderBulkBar();
+      renderActiveFilters();
+      syncSearchAssist();
+    }
+
+    function filterTabs(tabs) {
+      const query = state.filters.query.toLowerCase();
+      return tabs.filter((tab) => {
+        if (query && !tab.searchText.includes(query)) return false;
+        if (state.filters.profile !== "all" && tab.profile !== state.filters.profile) return false;
+        if (state.filters.container !== "all" && tab.container.name !== state.filters.container) return false;
+        if (state.filters.window !== "all" && String(tab.windowNumber) !== state.filters.window) return false;
+        if (state.filters.age !== "all" && ageBucket(tab) !== state.filters.age) return false;
+        if (state.duplicateUrl && tab.url !== state.duplicateUrl) return false;
+        return true;
+      });
+    }
+
+    function sortTabs(tabs) {
+      const sorted = [...tabs];
+      const sortBy = state.filters.sortBy;
+      if (sortBy === "natural") {
+        sorted.sort((a, b) => a.profileIndex - b.profileIndex || a.windowIndex - b.windowIndex || a.tabIndex - b.tabIndex);
+      } else if (sortBy === "accessed-desc") {
+        sorted.sort((a, b) => (b.lastAccessed || 0) - (a.lastAccessed || 0));
+      } else if (sortBy === "accessed-asc") {
+        sorted.sort((a, b) => (a.lastAccessed || Infinity) - (b.lastAccessed || Infinity));
+      } else if (sortBy === "title") {
+        sorted.sort((a, b) => a.title.localeCompare(b.title));
+      } else if (sortBy === "domain") {
+        sorted.sort((a, b) => a.domain.localeCompare(b.domain) || a.title.localeCompare(b.title));
+      }
+      return sorted;
+    }
+
+    function buildGroups(tabs) {
+      const groupBy = state.filters.groupBy;
+      if (groupBy === "flat") {
+        return [{ key: "flat", title: "All matching tabs", tabs }];
+      }
+
+      const map = new Map();
+      for (const tab of tabs) {
+        let key;
+        let title;
+        if (groupBy === "window") {
+          key = `window:${tab.windowNumber}`;
+          title = `Window ${tab.windowNumber}`;
+        } else if (groupBy === "container") {
+          key = `container:${tab.container.name}`;
+          title = tab.container.name;
+        } else if (groupBy === "domain") {
+          key = `domain:${tab.domain}`;
+          title = tab.domain || "(no domain)";
+        } else {
+          key = `age:${ageBucket(tab)}`;
+          title = ageLabel(ageBucket(tab));
+        }
+        if (!map.has(key)) {
+          map.set(key, {
+            key,
+            title,
+            tabs: [],
+            container: groupBy === "container" ? tab.container : null,
+          });
+        }
+        map.get(key).tabs.push(tab);
+      }
+
+      return [...map.values()].sort((a, b) => groupSortKey(a).localeCompare(groupSortKey(b), undefined, { numeric: true }));
+    }
+
+    function groupSortKey(group) {
+      if (group.key.startsWith("window:")) return `0:${group.key.padStart(4, "0")}`;
+      if (group.key.startsWith("age:")) return `1:${AGE_BUCKETS.findIndex(([key]) => group.key.endsWith(key))}`;
+      return group.title.toLowerCase();
+    }
+
+    function renderGroups() {
+      const fragment = document.createDocumentFragment();
+
+      if (!state.filtered.length) {
+        fragment.appendChild(emptyResultsCard());
+      } else {
+        const toolbar = groupToolbar();
+        if (toolbar) fragment.appendChild(toolbar);
+
+        state.groups.forEach((group) => {
+          fragment.appendChild(groupCard(group));
+        });
+      }
+
+      els.content.replaceChildren(fragment);
+      document.body.classList.toggle("density-compact", state.filters.density === "compact");
+      document.body.classList.toggle("density-cards", state.filters.density === "cards");
+    }
+
+    function groupToolbar() {
+      const groupKeys = currentGroupKeys();
+      if (state.filters.groupBy === "flat" || !groupKeys.length) return null;
+
+      const collapsedCount = groupKeys.filter((key) => state.collapsed.has(key)).length;
+      const totalTabs = state.groups.reduce((sum, group) => sum + group.tabs.length, 0);
+      const groupType = labelForGroup(state.filters.groupBy).toLowerCase();
+      const groupCountLabel = `${groupKeys.length} ${groupType} group${groupKeys.length === 1 ? "" : "s"}`;
+      const toolbar = document.createElement("section");
+      toolbar.className = `card group-toolbar group-${state.filters.groupBy}`;
+
+      const title = document.createElement("div");
+      title.className = "group-toolbar-title";
+      title.innerHTML = `<strong>Grouped by ${escapeHtml(labelForGroup(state.filters.groupBy))}</strong><span>${groupCountLabel}</span><span>${totalTabs} matching tabs</span><span>${collapsedCount} collapsed</span>`;
+
+      const menuButton = document.createElement("button");
+      menuButton.type = "button";
+      menuButton.className = "group-toolbar-menu";
+      menuButton.textContent = "Expand/collapse ▾";
+      menuButton.title = "Expand or collapse groups";
+      menuButton.addEventListener("click", (event) => {
+        event.stopPropagation();
+        openGroupMenu(menuButton, collapsedCount, groupKeys.length);
+      });
+
+      toolbar.append(title, menuButton);
+      return toolbar;
+    }
+
+    function emptyResultsCard() {
+      const empty = document.createElement("div");
+      empty.className = "card empty";
+      const title = document.createElement("strong");
+      title.textContent = "No tabs match";
+      const body = document.createElement("p");
+      const activeFilters = activeNarrowingLabels();
+      body.textContent = activeFilters.length
+        ? `Current filters: ${activeFilters.join(", ")}.`
+        : "Try changing the search or filters.";
+      empty.append(title, body);
+      if (activeFilters.length) {
+        const clearButton = document.createElement("button");
+        clearButton.type = "button";
+        clearButton.textContent = "Clear filters";
+        clearButton.addEventListener("click", clearFilters);
+        empty.appendChild(clearButton);
+      }
+      return empty;
+    }
+
+    function activeNarrowingLabels() {
+      const labels = [];
+      if (state.filters.query) labels.push(`search "${state.filters.query}"`);
+      if (state.filters.profile !== "all") labels.push(`profile ${state.filters.profile}`);
+      if (state.filters.container !== "all") labels.push(`container ${state.filters.container}`);
+      if (state.filters.age !== "all") labels.push(`age ${labelForAge(state.filters.age)}`);
+      if (state.filters.window !== "all") labels.push(`window ${state.filters.window}`);
+      if (state.duplicateUrl) labels.push(`duplicate URL ${shortUrl(state.duplicateUrl)}`);
+      return labels;
+    }
+
+    function openGroupMenu(anchor, collapsedCount, groupCount) {
+      closeContextMenu();
+      const rect = anchor.getBoundingClientRect();
+      const menu = document.createElement("div");
+      menu.className = "context-menu";
+      menu.style.left = `${Math.max(8, rect.right - 180)}px`;
+      menu.style.top = `${rect.bottom + 6}px`;
+      menu.append(
+        contextButton("Expand all groups", () => setGroupsCollapsed(false), { disabled: collapsedCount === 0 }),
+        contextButton("Collapse all groups", () => setGroupsCollapsed(true), { disabled: collapsedCount === groupCount })
+      );
+      document.body.appendChild(menu);
+    }
+
+    function setGroupsCollapsed(shouldCollapse) {
+      for (const key of currentGroupKeys()) {
+        if (shouldCollapse) state.collapsed.add(key);
+        else state.collapsed.delete(key);
+      }
+      renderGroups();
+    }
+
+    function currentGroupKeys() {
+      return state.groups.map((group) => group.key);
+    }
+
+    function groupCard(group) {
+      const section = document.createElement("section");
+      section.className = "card group";
+      if (state.collapsed.has(group.key)) section.classList.add("collapsed");
+
+      const header = document.createElement("button");
+      header.type = "button";
+      header.className = "group-header";
+      header.addEventListener("click", () => {
+        if (state.collapsed.has(group.key)) state.collapsed.delete(group.key);
+        else state.collapsed.add(group.key);
+        renderGroups();
+      });
+
+      const title = document.createElement("div");
+      title.className = "group-title";
+      title.innerHTML = `<span class="chevron">▾</span><strong>${escapeHtml(group.title)}</strong>`;
+      if (state.filters.groupBy === "container" && group.key.startsWith("container:")) title.appendChild(chip(group.container || group.title));
+
+      const meta = document.createElement("div");
+      meta.appendChild(pill(`${group.tabs.length} tab${group.tabs.length === 1 ? "" : "s"}`));
+      const newest = Math.max(...group.tabs.map((tab) => tab.lastAccessed || 0));
+      if (newest) meta.appendChild(pill(`newest ${relativeTime(newest)}`));
+
+      header.append(title, meta);
+
+      const rows = document.createElement("div");
+      rows.className = "rows";
+      group.tabs.forEach((tab) => rows.appendChild(tabRow(tab)));
+
+      section.append(header, rows);
+      return section;
+    }
+
+    function tabRow(tab) {
+      const row = document.createElement("article");
+      row.className = "tab-row";
+      row.dataset.id = tab.id;
+      if (state.filtered[state.activeIndex]?.id === tab.id) row.classList.add("active");
+
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.className = "selector";
+      checkbox.checked = state.selected.has(tab.id);
+      checkbox.title = "Select tab";
+      checkbox.addEventListener("click", (event) => {
+        event.stopPropagation();
+        selectTab(tab, event.shiftKey);
+      });
+
+      const icon = favicon(tab);
+
+      const main = document.createElement("div");
+      main.className = "tab-main";
+
+      const title = document.createElement("div");
+      title.className = "tab-title";
+      const link = document.createElement("a");
+      link.href = tab.url || "#";
+      link.target = "_blank";
+      link.rel = "noopener";
+      link.textContent = tab.title;
+      link.title = `${tab.title}\n${tab.url}`;
+      title.append(link);
+
+      const meta = document.createElement("div");
+      meta.className = "tab-meta";
+      const url = document.createElement("span");
+      url.className = "tab-url";
+      url.textContent = tab.url;
+      const accessed = document.createElement("span");
+      accessed.title = tab.lastAccessed ? new Date(tab.lastAccessed).toLocaleString() : "Unknown access time";
+      accessed.textContent = tab.lastAccessed ? relativeTime(tab.lastAccessed) : "unknown";
+      meta.append(url, accessed, chip(tab.container), pill(`W${tab.windowNumber}.${tab.tabNumber}`));
+
+      main.append(title, meta);
+
+      const actions = document.createElement("div");
+      actions.className = "tab-actions";
+      actions.appendChild(pill(tab.domain || "local"));
+
+      row.append(checkbox, icon, main, actions);
+      row.addEventListener("click", (event) => {
+        if (event.target.closest("a")) return;
+        state.activeIndex = state.filtered.findIndex((candidate) => candidate.id === tab.id);
+        renderGroups();
+      });
+      row.addEventListener("dblclick", () => openTab(tab));
+      row.addEventListener("contextmenu", (event) => {
+        event.preventDefault();
+        openContextMenu(event.clientX, event.clientY, tab);
+      });
+      return row;
+    }
+
+    function favicon(tab) {
+      if (tab.image) {
+        const img = document.createElement("img");
+        img.className = "favicon";
+        img.src = tab.image;
+        img.alt = "";
+        img.loading = "lazy";
+        return img;
+      }
+      const fallback = document.createElement("div");
+      fallback.className = "fallback-icon";
+      fallback.textContent = (tab.domain || tab.title || "?").slice(0, 1).toUpperCase();
+      return fallback;
+    }
+
+    function renderSidebar() {
+      renderSummary();
+      renderContainerStats();
+      renderAgeStats();
+      renderDomainStats();
+      renderDuplicateStats();
+    }
+
+    function clearSidebar() {
+      els.summaryStats.replaceChildren();
+      els.containerStats.replaceChildren();
+      els.ageStats.replaceChildren();
+      els.domainStats.replaceChildren();
+      els.duplicateStats.replaceChildren();
+    }
+
+    function renderSummary() {
+      const tabs = state.tabs;
+      const windows = uniqueSorted(tabs.map((tab) => String(tab.windowNumber)), true).length;
+      const profiles = uniqueSorted(tabs.map((tab) => tab.profile)).length;
+      const oldest = tabs.filter((tab) => tab.lastAccessed).sort((a, b) => a.lastAccessed - b.lastAccessed)[0];
+      const newest = tabs.filter((tab) => tab.lastAccessed).sort((a, b) => b.lastAccessed - a.lastAccessed)[0];
+      const faviconBytes = tabs.reduce((sum, tab) => sum + tab.image.length, 0);
+      const stats = [
+        [tabs.length, "tabs"],
+        [windows, "windows"],
+        [profiles, "profiles"],
+        [state.filtered.length, "matching"],
+        [oldest ? relativeTime(oldest.lastAccessed) : "n/a", "oldest"],
+        [newest ? relativeTime(newest.lastAccessed) : "n/a", "newest"],
+        [formatBytes(faviconBytes), "favicon data"],
+      ];
+      els.summaryStats.replaceChildren(...stats.map(([value, label]) => stat(value, label)));
+    }
+
+    function renderContainerStats() {
+      const counts = countBy(state.tabs, (tab) => tab.container.name);
+      const containersByName = containerMetadataByName(state.tabs);
+      const selectedContainer = state.filters.container;
+      const sorted = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+      const max = Math.max(1, ...sorted.map(([, count]) => count));
+      const nodes = sorted.map(([name, count]) => {
+        const isSelected = selectedContainer === name;
+        return metric(
+          name,
+          count,
+          max,
+          () => setFilter("container", isSelected ? "all" : name),
+          isSelected ? `${name} selected. Click to show all containers.` : `Filter to ${name}. Clears any other container filter.`,
+          (label) => chip(containersByName.get(label) || label),
+          { isSelected }
+        );
+      });
+
+      els.containerStats.setAttribute("role", "group");
+      els.containerStats.setAttribute("aria-label", "Container filters. Only one container can be selected at a time.");
+      els.containerStats.replaceChildren(...nodes);
+    }
+
+    function containerMetadataByName(tabs) {
+      const map = new Map();
+      for (const tab of tabs) {
+        if (!map.has(tab.container.name)) map.set(tab.container.name, tab.container);
+      }
+      return map;
+    }
+
+    function renderAgeStats() {
+      const counts = countBy(state.tabs, ageBucket);
+      const max = Math.max(1, ...counts.values());
+      const nodes = AGE_BUCKETS.map(([key, label]) => {
+        const count = counts.get(key) || 0;
+        const isSelected = state.filters.age === key;
+        return metric(
+          label,
+          count,
+          max,
+          () => setFilter("age", isSelected ? "all" : key),
+          isSelected ? `${label} selected. Click to show any age.` : `Filter to ${label}. Clears any other age filter.`,
+          null,
+          { isSelected }
+        );
+      });
+      els.ageStats.setAttribute("role", "group");
+      els.ageStats.setAttribute("aria-label", "Age bucket filters. Only one age bucket can be selected at a time.");
+      els.ageStats.replaceChildren(...nodes);
+    }
+
+    function renderDomainStats() {
+      const counts = countBy(state.tabs, (tab) => tab.domain || "(no domain)");
+      const sorted = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 12);
+      const max = Math.max(1, ...sorted.map(([, count]) => count));
+      const nodes = sorted.map(([domain, count]) => {
+        const query = domain === "(no domain)" ? "" : domain;
+        const isSelected = Boolean(query) && state.filters.query === query;
+        return metric(domain, count, max, () => {
+          state.filters.query = isSelected ? "" : query;
+          state.activeIndex = -1;
+          syncHash();
+          setInputMode("search");
+          render();
+        }, isSelected ? `${domain} selected. Click to clear domain search.` : `Search for ${domain}. Combines with toolbar and duplicate filters.`, null, { isSelected });
+      });
+      els.domainStats.setAttribute("role", "group");
+      els.domainStats.setAttribute("aria-label", "Top domain search shortcuts. Only one domain shortcut can be selected at a time.");
+      els.domainStats.replaceChildren(...nodes);
+    }
+
+    function renderDuplicateStats() {
+      const counts = countBy(state.tabs.filter((tab) => tab.url), (tab) => tab.url);
+      const duplicates = [...counts.entries()].filter(([, count]) => count > 1)
+        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+        .slice(0, 10);
+
+      if (!duplicates.length) {
+        const empty = document.createElement("div");
+        empty.className = "metric";
+        empty.textContent = "No exact duplicate URLs.";
+        els.duplicateStats.replaceChildren(empty);
+        return;
+      }
+
+      const max = Math.max(...duplicates.map(([, count]) => count));
+      const nodes = duplicates.map(([url, count]) => {
+        const isSelected = state.duplicateUrl === url;
+        return metric(shortUrl(url), count, max, () => {
+          state.duplicateUrl = isSelected ? "" : url;
+          state.activeIndex = -1;
+          syncHash();
+          render();
+        }, isSelected ? `${url} selected. Click to clear duplicate filter.` : `Filter to duplicate URL ${url}. Combines with search and toolbar filters.`, null, { isSelected });
+      });
+      els.duplicateStats.setAttribute("role", "group");
+      els.duplicateStats.setAttribute("aria-label", "Duplicate URL filters. Only one duplicate URL can be selected at a time.");
+      els.duplicateStats.replaceChildren(...nodes);
+    }
+
+    function stat(value, label) {
+      const node = document.createElement("div");
+      node.className = "stat";
+      node.innerHTML = `<strong>${escapeHtml(String(value))}</strong><span>${escapeHtml(label)}</span>`;
+      return node;
+    }
+
+    function metric(label, count, max, onClick, title = label, labelNodeFactory = null, options = {}) {
+      const node = document.createElement("button");
+      node.type = "button";
+      node.className = "metric";
+      node.title = title;
+      if ("isSelected" in options) node.setAttribute("aria-pressed", options.isSelected ? "true" : "false");
+      const row = document.createElement("div");
+      row.className = "metric-row";
+      const left = labelNodeFactory ? labelNodeFactory(label) : document.createElement("span");
+      if (!labelNodeFactory) left.textContent = label;
+      const right = document.createElement("strong");
+      right.textContent = count;
+      row.append(left, right);
+      const bar = document.createElement("div");
+      bar.className = "bar";
+      const fill = document.createElement("span");
+      fill.style.setProperty("--w", `${Math.round((count / max) * 100)}%`);
+      bar.appendChild(fill);
+      node.append(row, bar);
+      if (options.isSelected) {
+        const selected = document.createElement("span");
+        selected.className = "selection-state";
+        selected.textContent = "Selected";
+        node.appendChild(selected);
+      }
+      node.addEventListener("click", onClick);
+      return node;
+    }
+
+    function selectTab(tab, withRange) {
+      const index = state.filtered.findIndex((candidate) => candidate.id === tab.id);
+      if (withRange && state.lastSelectedIndex !== null) {
+        const start = Math.min(index, state.lastSelectedIndex);
+        const end = Math.max(index, state.lastSelectedIndex);
+        for (const item of state.filtered.slice(start, end + 1)) state.selected.add(item.id);
+      } else if (state.selected.has(tab.id)) {
+        state.selected.delete(tab.id);
+      } else {
+        state.selected.add(tab.id);
+      }
+      state.lastSelectedIndex = index;
+      render();
+    }
+
+    function renderBulkBar() {
+      els.selectedCount.textContent = `${state.selected.size} selected`;
+      els.bulkBar.classList.toggle("hidden", state.selected.size === 0);
+    }
+
+    function renderActiveFilters() {
+      const chips = [];
+      if (state.filters.query) {
+        chips.push(activeFilterChip("Search", state.filters.query, () => clearActiveState("query")));
+      }
+      if (state.filters.profile !== "all") {
+        chips.push(activeFilterChip("Profile", state.filters.profile, () => setFilter("profile", "all")));
+      }
+      if (state.filters.container !== "all") {
+        chips.push(activeFilterChip("Container", state.filters.container, () => setFilter("container", "all")));
+      }
+      if (state.filters.age !== "all") {
+        chips.push(activeFilterChip("Age", labelForAge(state.filters.age), () => setFilter("age", "all")));
+      }
+      if (state.filters.window !== "all") {
+        chips.push(activeFilterChip("Window", state.filters.window, () => setFilter("window", "all")));
+      }
+      if (state.duplicateUrl) {
+        chips.push(activeFilterChip("Duplicate URL", shortUrl(state.duplicateUrl), () => clearActiveState("duplicate")));
+      }
+      els.activeFilters.classList.toggle("hidden", chips.length === 0);
+      if (!chips.length) {
+        els.activeFilters.replaceChildren();
+        syncStickyResultsTop();
+        return;
+      }
+
+      const label = document.createElement("span");
+      label.className = "active-filters-label";
+      label.textContent = "Active";
+      els.activeFilters.replaceChildren(label, ...chips);
+      syncStickyResultsTop();
+    }
+
+    function activeFilterChip(label, value, onClear) {
+      const node = document.createElement("span");
+      node.className = "active-filter-chip";
+      const text = document.createElement("span");
+      text.textContent = `${label}:`;
+      const strong = document.createElement("strong");
+      strong.textContent = value;
+      const button = document.createElement("button");
+      button.type = "button";
+      button.setAttribute("aria-label", `Clear ${label}`);
+      button.title = `Clear ${label}`;
+      button.textContent = "\u00d7";
+      button.addEventListener("click", onClear);
+      node.append(text, strong, button);
+      return node;
+    }
+
+    function clearActiveState(kind) {
+      if (kind === "query") {
+        state.filters.query = "";
+        els.searchInput.value = "";
+      } else if (kind === "duplicate") {
+        state.duplicateUrl = "";
+      }
+      state.activeIndex = -1;
+      syncHash();
+      render();
+    }
+
+    function labelForAge(value) {
+      return AGE_BUCKETS.find(([key]) => key === value)?.[1] || value;
+    }
+
+    function labelForGroup(value) {
+      return {
+        window: "Window",
+        container: "Container",
+        domain: "Domain",
+        age: "Age",
+        flat: "Flat list",
+      }[value] || value;
+    }
+
+    function labelForSort(value) {
+      return {
+        natural: "Original",
+        "accessed-desc": "Newest first",
+        "accessed-asc": "Oldest first",
+        title: "Title A-Z",
+        domain: "Domain A-Z",
+      }[value] || value;
+    }
+
+    function labelForDensity(value) {
+      return {
+        comfy: "Comfy",
+        compact: "Compact",
+        cards: "Cards",
+      }[value] || value;
+    }
+
+    function selectedTabs() {
+      const byId = new Map(state.tabs.map((tab) => [tab.id, tab]));
+      return [...state.selected].map((id) => byId.get(id)).filter(Boolean);
+    }
+
+    function openSelected() {
+      const tabs = selectedTabs();
+      if (tabs.length > 20 && !confirm(`Open ${tabs.length} browser tabs?`)) return;
+      tabs.forEach((tab) => openTab(tab));
+    }
+
+    function copySelected(kind) {
+      const tabs = selectedTabs();
+      const text = formatExport(tabs, kind);
+      navigator.clipboard.writeText(text)
+        .then(() => showToast(`Copied ${tabs.length} tab${tabs.length === 1 ? "" : "s"}`))
+        .catch(() => fallbackCopy(text));
+    }
+
+    function formatExport(tabs, kind) {
+      if (kind === "markdown") return tabs.map((tab) => `- [${escapeMarkdown(tab.title)}](${tab.url})`).join("\n");
+      if (kind === "onetab") return tabs.map((tab) => `${tab.url} | ${tab.title}`).join("\n");
+      return tabs.map((tab) => tab.url).join("\n");
+    }
+
+    function fallbackCopy(text) {
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      textarea.remove();
+      showToast("Copied to clipboard");
+    }
+
+    function focusInputMode(mode) {
+      if (mode === "command") openCommandPalette({ focus: true, select: true });
+      else focusSearchInput();
+    }
+
+    function setInputMode(mode, options = {}) {
+      clearTimeout(searchInputTimer);
+      if (mode === "command") {
+        openCommandPalette({ focus: options.focus, select: options.select });
+        return;
+      }
+      closeCommandPalette();
+      els.searchInput.value = state.filters.query;
+      if (options.focus) {
+        focusSearchInput();
+      }
+      syncSearchAssist();
+    }
+
+    function focusSearchInput() {
+      requestAnimationFrame(() => {
+        els.searchInput.focus();
+        els.searchInput.select();
+      });
+    }
+
+    function openCommandPalette(options = {}) {
+      state.commandPaletteOpen = true;
+      els.commandInput.value = state.commandQuery;
+      syncSearchAssist();
+      if (options.focus) {
+        requestAnimationFrame(() => {
+          els.commandInput.focus();
+          if (options.select) els.commandInput.select();
+        });
+      }
+    }
+
+    function closeCommandPalette(options = {}) {
+      state.commandPaletteOpen = false;
+      syncSearchAssist();
+      if (options.blur) els.commandInput.blur();
+    }
+
+    function handleSearchInput() {
+      clearTimeout(searchInputTimer);
+      const query = els.searchInput.value.trim();
+      searchInputTimer = setTimeout(() => {
+        state.filters.query = query;
+        state.activeIndex = -1;
+        syncHash();
+        render();
+        syncSearchAssist();
+      }, 40);
+    }
+
+    function handleCommandInput() {
+      state.commandQuery = els.commandInput.value.trim();
+      state.commandPaletteOpen = true;
+      renderCommandPalette();
+      syncSearchAssist();
+    }
+
+    function handleSearchInputKeydown(event) {
+      if (event.key === "Escape") {
+        if (state.filters.query || els.searchInput.value) {
+          event.preventDefault();
+          state.filters.query = "";
+          els.searchInput.value = "";
+          syncHash();
+          render();
+          syncSearchAssist();
+        } else {
+          els.searchInput.blur();
+        }
+      }
+    }
+
+    function handleCommandKeydown(event) {
+      const items = [...els.commandPalette.querySelectorAll(".palette-item")];
+      const current = Math.max(0, items.findIndex((item) => item.classList.contains("active")));
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        setPaletteActive(items, Math.min(items.length - 1, current + 1));
+      } else if (event.key === "ArrowUp") {
+        event.preventDefault();
+        setPaletteActive(items, Math.max(0, current - 1));
+      } else if (event.key === "Enter") {
+        event.preventDefault();
+        items[current]?.click();
+      } else if (event.key === "Escape") {
+        event.preventDefault();
+        closeCommandPalette({ blur: true });
+      }
+    }
+
+    function setPaletteActive(items, index) {
+      items.forEach((item) => item.classList.remove("active"));
+      items[index]?.classList.add("active");
+      items[index]?.scrollIntoView({ block: "nearest" });
+    }
+
+    function syncSearchAssist() {
+      const hasSearchFocus = document.activeElement === els.searchInput;
+      const hasCommandSpotlight = state.commandPaletteOpen;
+      const hasSpotlight = state.tabs.length > 0 && (hasSearchFocus || hasCommandSpotlight);
+      const showSearchHelp = hasSearchFocus && !els.searchInput.value.trim();
+      document.body.classList.toggle("search-spotlight", hasSpotlight);
+      document.body.classList.toggle("command-spotlight", hasCommandSpotlight);
+      els.searchWrap.classList.toggle("spotlight-active", hasSpotlight);
+      els.searchWrap.classList.toggle("command-spotlight", hasCommandSpotlight);
+      els.searchAssist.classList.toggle("hidden", !showSearchHelp);
+      els.commandButton.setAttribute("aria-expanded", String(state.commandPaletteOpen));
+      els.commandPanel.classList.toggle("hidden", !state.commandPaletteOpen);
+      if (state.commandPaletteOpen) renderCommandPalette();
+    }
+
+    function buildCommands() {
+      const savedSnapshot = readLastSnapshot();
+      const commands = [
+        {
+          type: "action",
+          title: "Clear filters",
+          subtitle: "Reset search, profile, container, age, window, and duplicate filters",
+          text: "clear filters reset search all",
+          run: clearFilters,
+        },
+        {
+          type: "action",
+          title: "Open loader",
+          subtitle: "Show the folder, session, and JSON import dialog",
+          text: "open loader load import folder json modal dialog",
+          run: openLoaderDialog,
+        },
+        {
+          type: "action",
+          title: state.sidebarOpen ? "Hide insights" : "Show insights",
+          subtitle: "Toggle the left insights sidebar",
+          text: "insights sidebar toggle show hide",
+          run: toggleSidebar,
+        },
+        {
+          type: "action",
+          title: "Toggle theme",
+          subtitle: "Switch between light and dark themes",
+          text: "theme dark light toggle",
+          run: toggleTheme,
+        },
+        {
+          type: "action",
+          title: "Export reloadable JSON",
+          subtitle: "Download the current tab snapshot, including favicons",
+          text: "export reloadable json custom download backup",
+          run: exportReloadableJson,
+        },
+        {
+          type: "action",
+          title: "Reset viewer",
+          subtitle: "Clear current tabs plus saved snapshot, preferences, and theme",
+          text: "reset clear current tabs saved data preferences theme snapshot",
+          run: resetViewerData,
+        },
+      ];
+
+      if (state.filters.query) {
+        commands.push({
+          type: "action",
+          title: "Clear search",
+          subtitle: `Remove text search: ${state.filters.query}`,
+          text: "clear search query text",
+          run: () => clearActiveState("query"),
+        });
+      }
+
+      if (state.duplicateUrl) {
+        commands.push({
+          type: "action",
+          title: "Clear duplicate URL filter",
+          subtitle: shortUrl(state.duplicateUrl),
+          text: "clear duplicate url filter",
+          run: () => clearActiveState("duplicate"),
+        });
+      }
+
+      if (savedSnapshot) {
+        commands.push(
+          {
+            type: "action",
+            title: "Reload last loaded",
+            subtitle: lastSnapshotSubtitle(savedSnapshot),
+            text: "reload restore last loaded saved localstorage browser storage",
+            run: () => restoreLastSnapshot(),
+          },
+          {
+            type: "action",
+            title: "Forget last loaded",
+            subtitle: "Remove the saved tab snapshot from this browser",
+            text: "forget clear remove saved last loaded localstorage browser storage",
+            run: clearLastSnapshot,
+          }
+        );
+      }
+
+      commands.push(...[
+        ["window", "Group by window"],
+        ["container", "Group by container"],
+        ["domain", "Group by domain"],
+        ["age", "Group by age"],
+        ["flat", "Flat list"],
+      ].map(([value, title]) => ({
+        type: "group",
+        title,
+        subtitle: "Change how matching tabs are grouped",
+        text: `group ${value} ${title}`.toLowerCase(),
+        run: () => setFilter("groupBy", value),
+      })));
+
+      commands.push(...[
+        ["natural", "Sort original"],
+        ["accessed-desc", "Sort newest first"],
+        ["accessed-asc", "Sort oldest first"],
+        ["title", "Sort title A-Z"],
+        ["domain", "Sort domain A-Z"],
+      ].map(([value, title]) => ({
+        type: "sort",
+        title,
+        subtitle: "Change tab ordering",
+        text: `sort ${value} ${title}`.toLowerCase(),
+        run: () => setFilter("sortBy", value),
+      })));
+
+      commands.push(...[
+        ["comfy", "Density comfy"],
+        ["compact", "Density compact"],
+        ["cards", "Density cards"],
+      ].map(([value, title]) => ({
+        type: "view",
+        title,
+        subtitle: "Change row density",
+        text: `density ${value} ${title}`.toLowerCase(),
+        run: () => setFilter("density", value),
+      })));
+
+      commands.push(...AGE_BUCKETS.map(([value, title]) => ({
+        type: "age",
+        title: `Filter age: ${title}`,
+        subtitle: "Show only tabs in this age bucket",
+        text: `age ${value} ${title}`.toLowerCase(),
+        run: () => setFilter("age", value),
+      })));
+
+      commands.push(...uniqueSorted(state.tabs.map((tab) => tab.profile)).map((name) => ({
+        type: "profile",
+        title: `Filter profile: ${name}`,
+        subtitle: "Show only this Firefox profile",
+        text: `profile ${name}`.toLowerCase(),
+        run: () => setFilter("profile", name),
+      })));
+
+      commands.push(...uniqueSorted(state.tabs.map((tab) => tab.container.name)).map((name) => ({
+        type: "container",
+        title: `Filter container: ${name}`,
+        subtitle: "Show only this Firefox container",
+        text: `container ${name}`.toLowerCase(),
+        run: () => setFilter("container", name),
+      })));
+      commands.push(...uniqueSorted(state.tabs.map((tab) => String(tab.windowNumber)), true).map((number) => ({
+        type: "window",
+        title: `Filter Window ${number}`,
+        subtitle: "Show only this window",
+        text: `window ${number}`,
+        run: () => setFilter("window", number),
+      })));
+      const commandTabs = state.filtered.length ? state.filtered : filterTabs(state.tabs);
+      commands.push(...commandTabs.map((tab) => ({
+        type: "tab",
+        title: tab.title,
+        subtitle: `${tab.domain} - ${tab.profile} - Window ${tab.windowNumber} - ${tab.container.name}`,
+        tab,
+        text: `${tab.title} ${tab.url} ${tab.domain} ${tab.profile} ${tab.container.name}`.toLowerCase(),
+      })));
+
+      return commands;
+    }
+
+    function renderCommandPalette() {
+      if (!state.commandPaletteOpen || !state.tabs.length) {
+        els.commandPalette.replaceChildren();
+        return;
+      }
+
+      const q = state.commandQuery.toLowerCase();
+      const results = buildCommands().filter((command) => !q || command.text.includes(q)).slice(0, 80);
+      if (!results.length) {
+        const empty = document.createElement("div");
+        empty.className = "palette-empty";
+        empty.textContent = "No matching commands.";
+        els.commandPalette.replaceChildren(empty);
+        return;
+      }
+
+      els.commandPalette.replaceChildren(...results.map((command, index) => {
+        const item = document.createElement("button");
+        item.type = "button";
+        item.className = "palette-item";
+        if (index === 0) item.classList.add("active");
+        item.innerHTML = `<span>${iconForCommand(command.type)}</span><div><div class="palette-title">${escapeHtml(command.title)}</div><div class="palette-subtitle">${escapeHtml(command.subtitle)}</div></div><span class="pill">${escapeHtml(command.type)}</span>`;
+        item.addEventListener("mousedown", (event) => event.preventDefault());
+        item.addEventListener("click", () => runCommand(command));
+        return item;
+      }));
+    }
+
+    function runCommand(command) {
+      state.commandPaletteOpen = false;
+      if (command.type === "tab") {
+        state.activeIndex = state.filtered.findIndex((tab) => tab.id === command.tab.id);
+        render();
+        finishCommandExecution();
+        requestAnimationFrame(() => {
+          document.querySelector(`[data-id="${cssEscape(command.tab.id)}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+        });
+      } else {
+        command.run();
+        finishCommandExecution();
+      }
+    }
+
+    function finishCommandExecution() {
+      closeCommandPalette({ blur: true });
+    }
+
+    function setFilter(key, value) {
+      const previousValue = state.filters[key];
+      state.filters[key] = value;
+      if (key === "groupBy" && value !== previousValue) state.collapsed.clear();
+      if (key === "profile") els.profileFilter.value = value;
+      if (key === "container") els.containerFilter.value = value;
+      if (key === "age") els.ageFilter.value = value;
+      if (key === "window") els.windowFilter.value = value;
+      if (key === "groupBy") els.groupBy.value = value;
+      if (key === "sortBy") els.sortBy.value = value;
+      if (key === "density") els.density.value = value;
+      state.activeIndex = -1;
+      savePreferences();
+      syncHash();
+      render();
+    }
+
+    function clearFilters() {
+      state.filters.query = "";
+      state.filters.profile = "all";
+      state.filters.container = "all";
+      state.filters.age = "all";
+      state.filters.window = "all";
+      state.duplicateUrl = "";
+      state.activeIndex = -1;
+      applyControlsFromState();
+      syncHash();
+      render();
+    }
+
+    function saveLastSnapshot(parsed, filename, tabs) {
+      const snapshot = {
+        format: CUSTOM_JSON_FORMAT,
+        version: LAST_SNAPSHOT_VERSION,
+        savedAt: new Date().toISOString(),
+        filename,
+        tabCount: tabs.length,
+        data: compactSnapshotData(parsed),
+      };
+      let serialized = "";
+      try {
+        serialized = JSON.stringify(snapshot);
+        if (serialized.length > LAST_SNAPSHOT_MAX_CHARS) {
+          localStorage.removeItem(LAST_SNAPSHOT_KEY);
+          showToast("Loaded, but too large to save for browser reload.");
+          return;
+        }
+        localStorage.setItem(LAST_SNAPSHOT_KEY, serialized);
+      } catch {
+        try { localStorage.removeItem(LAST_SNAPSHOT_KEY); } catch (_) {}
+        showToast("Loaded, but browser storage could not save it for reload.");
+      }
+    }
+
+    function readLastSnapshot() {
+      try {
+        const raw = localStorage.getItem(LAST_SNAPSHOT_KEY);
+        if (!raw) return null;
+        const snapshot = JSON.parse(raw);
+        if (snapshot?.version !== LAST_SNAPSHOT_VERSION || !Array.isArray(snapshot.data?.profiles)) {
+          localStorage.removeItem(LAST_SNAPSHOT_KEY);
+          return null;
+        }
+        return snapshot;
+      } catch {
+        try { localStorage.removeItem(LAST_SNAPSHOT_KEY); } catch (_) {}
+        return null;
+      }
+    }
+
+    function restoreLastSnapshot(options = {}) {
+      const snapshot = readLastSnapshot();
+      if (!snapshot) return false;
+      try {
+        loadParsedData(snapshot.data, snapshot.filename || "last loaded", { restored: true });
+        if (!options.silent) {
+          showToast(`Restored ${snapshot.tabCount || state.tabs.length} tab${(snapshot.tabCount || state.tabs.length) === 1 ? "" : "s"} from browser storage.`);
+        }
+        return true;
+      } catch {
+        try { localStorage.removeItem(LAST_SNAPSHOT_KEY); } catch (_) {}
+        if (!options.silent) showToast("Could not restore the saved tab snapshot.");
+        return false;
+      }
+    }
+
+    function clearLastSnapshot() {
+      try {
+        localStorage.removeItem(LAST_SNAPSHOT_KEY);
+        showToast("Forgot the saved tab snapshot.");
+      } catch {
+        showToast("Could not clear browser storage.");
+      }
+    }
+
+    function resetViewerData() {
+      if (!confirm("Reset the viewer? This clears the current tab list plus saved snapshot, preferences, and theme stored in this browser.")) return;
+      try {
+        for (const key of Object.keys(localStorage)) {
+          if (key.startsWith("ffTabsViewer")) localStorage.removeItem(key);
+        }
+      } catch (_) {}
+
+      resetRuntimeState();
+      applyTheme(DEFAULT_THEME);
+      applyControlsFromState();
+      syncHash();
+      render();
+      openLoaderDialog();
+      showToast("Viewer reset.");
+    }
+
+    function resetRuntimeState() {
+      state.tabs = [];
+      state.filtered = [];
+      state.groups = [];
+      state.selected.clear();
+      state.collapsed.clear();
+      state.activeIndex = -1;
+      state.lastSelectedIndex = null;
+      state.duplicateUrl = "";
+      state.sidebarWidth = 320;
+      state.sidebarOpen = false;
+      state.commandQuery = "";
+      state.commandPaletteOpen = false;
+      state.ggPending = false;
+      Object.assign(state.filters, DEFAULT_FILTERS);
+      populateFilters();
+      els.subtitle.textContent = 'Drop your Firefox "profiles" folder here to begin.';
+      els.exportJsonButton.disabled = true;
+    }
+
+    function lastSnapshotSubtitle(snapshot) {
+      const count = Number.isFinite(snapshot.tabCount) ? snapshot.tabCount : 0;
+      const savedAt = Date.parse(snapshot.savedAt || "");
+      const when = Number.isFinite(savedAt) ? relativeTime(savedAt) : "recently";
+      const source = snapshot.filename ? `${snapshot.filename} - ` : "";
+      return `${source}${count || "saved"} tab${count === 1 ? "" : "s"} saved ${when}`;
+    }
+
+    function compactSnapshotData(data) {
+      return {
+        timestamp_utc: data?.timestamp_utc || new Date().toISOString().replace(/[-:]|\.\d{3}/g, ""),
+        profiles: (Array.isArray(data?.profiles) ? data.profiles : []).map((profile, profileIndex) => ({
+          profile: String(profile.profile || `Profile ${profileIndex + 1}`),
+          profile_path: String(profile.profile_path || ""),
+          session_file: String(profile.session_file || ""),
+          windows: (Array.isArray(profile.windows) ? profile.windows : []).map((windowTabs) =>
+            (Array.isArray(windowTabs) ? windowTabs : []).map((tab) => ({
+              title: String(tab.title || "(no title)"),
+              url: String(tab.url || ""),
+              lastAccessed: Number.isFinite(Number(tab.lastAccessed)) ? Number(tab.lastAccessed) : null,
+              image: String(tab.image || ""),
+              container: serializeContainerMetadata(tab.container),
+            }))
+          ),
+        })),
+      };
+    }
+
+    function normalizeImportPayload(payload, fallbackFilename) {
+      if (payload?.format === CUSTOM_JSON_FORMAT && Array.isArray(payload.data?.profiles)) {
+        return {
+          data: payload.data,
+          filename: payload.filename || fallbackFilename || "reloadable export",
+        };
+      }
+      if (payload?.version === LAST_SNAPSHOT_VERSION && Array.isArray(payload.data?.profiles)) {
+        return {
+          data: payload.data,
+          filename: payload.filename || fallbackFilename || "saved snapshot",
+        };
+      }
+      if (Array.isArray(payload?.profiles)) {
+        return {
+          data: payload,
+          filename: fallbackFilename || "Firefox tabs JSON",
+        };
+      }
+      throw new Error("Expected a Firefox Tabs Viewer export or parser JSON with profiles.");
+    }
+
+    function exportReloadableJson() {
+      if (!state.tabs.length) {
+        showToast("Load tabs before exporting JSON.");
+        return;
+      }
+      const now = new Date();
+      const payload = {
+        format: CUSTOM_JSON_FORMAT,
+        version: LAST_SNAPSHOT_VERSION,
+        exportedAt: now.toISOString(),
+        filename: `Firefox Tabs Viewer export ${now.toLocaleString()}`,
+        tabCount: state.tabs.length,
+        data: snapshotDataFromTabs(state.tabs),
+      };
+      const stamp = now.toISOString().replace(/[-:]|\.\d{3}/g, "").replace("T", "-").replace("Z", "Z");
+      downloadText(
+        JSON.stringify(payload, null, 2),
+        `firefox-tabs-viewer-${stamp}.json`,
+        "application/json"
+      );
+      showToast(`Exported ${state.tabs.length} tab${state.tabs.length === 1 ? "" : "s"} as reloadable JSON.`);
+    }
+
+    function snapshotDataFromTabs(tabs) {
+      const profiles = [];
+      for (const tab of tabs) {
+        const profileIndex = Number.isFinite(tab.profileIndex) ? tab.profileIndex : 0;
+        const windowIndex = Number.isFinite(tab.windowIndex) ? tab.windowIndex : 0;
+        const tabIndex = Number.isFinite(tab.tabIndex) ? tab.tabIndex : profiles[profileIndex]?.windows?.[windowIndex]?.length || 0;
+
+        if (!profiles[profileIndex]) {
+          profiles[profileIndex] = {
+            profile: tab.profile || `Profile ${profileIndex + 1}`,
+            profile_path: "",
+            session_file: "",
+            windows: [],
+          };
+        }
+        if (!profiles[profileIndex].windows[windowIndex]) profiles[profileIndex].windows[windowIndex] = [];
+        profiles[profileIndex].windows[windowIndex][tabIndex] = {
+          title: tab.title,
+          url: tab.url,
+          lastAccessed: tab.lastAccessed,
+          image: tab.image || "",
+          container: serializeContainerMetadata(tab.container),
+        };
+      }
+
+      return {
+        timestamp_utc: new Date().toISOString().replace(/[-:]|\.\d{3}/g, ""),
+        profiles: profiles.filter(Boolean).map((profile) => ({
+          ...profile,
+          windows: profile.windows.filter(Boolean).map((windowTabs) => windowTabs.filter(Boolean)),
+        })),
+      };
+    }
+
+    function serializeContainerMetadata(containerOrName) {
+      const container = normalizeContainerMetadata(containerOrName);
+      const serialized = {
+        id: container.id,
+        name: container.name,
+      };
+      if (container.color) serialized.color = container.color;
+      if (container.colorCode) serialized.colorCode = container.colorCode;
+      if (container.icon) serialized.icon = container.icon;
+      return serialized;
+    }
+
+    function downloadText(text, filename, mimeType) {
+      const blob = new Blob([text], { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 0);
+    }
+
+    function handleKeydown(event) {
+      if (els.helpDialog.open || els.dropDialog.open) return;
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        focusInputMode("command");
+        return;
+      }
+      if (event.target.matches("input, textarea, select")) return;
+      if (event.key === "/") {
+        event.preventDefault();
+        focusInputMode("search");
+        return;
+      }
+      if (event.key === "?") {
+        if (!els.helpDialog.open) els.helpDialog.showModal();
+        return;
+      }
+      if (!state.filtered.length) return;
+      if (event.key === "j" || event.key === "ArrowDown") {
+        event.preventDefault();
+        moveActive(1);
+      } else if (event.key === "k" || event.key === "ArrowUp") {
+        event.preventDefault();
+        moveActive(-1);
+      } else if (event.key === "Enter" && state.activeIndex >= 0) {
+        openTab(state.filtered[state.activeIndex]);
+      } else if (event.key === "x" && state.activeIndex >= 0) {
+        selectTab(state.filtered[state.activeIndex], event.shiftKey);
+      } else if (event.key === "G") {
+        state.activeIndex = state.filtered.length - 1;
+        renderGroupsAndScroll();
+      } else if (event.key === "g") {
+        if (state.ggPending) {
+          state.activeIndex = 0;
+          state.ggPending = false;
+          renderGroupsAndScroll();
+        } else {
+          state.ggPending = true;
+          setTimeout(() => state.ggPending = false, 700);
+        }
+      } else if (event.key === "Escape") {
+        if (state.filters.query) {
+          state.filters.query = "";
+          els.searchInput.value = "";
+          syncHash();
+          render();
+        } else if (state.duplicateUrl) {
+          state.duplicateUrl = "";
+          state.activeIndex = -1;
+          syncHash();
+          render();
+        }
+      }
+    }
+
+    function moveActive(delta) {
+      state.activeIndex = clamp(state.activeIndex + delta, 0, state.filtered.length - 1);
+      renderGroupsAndScroll();
+    }
+
+    function renderGroupsAndScroll() {
+      renderGroups();
+      const tab = state.filtered[state.activeIndex];
+      if (tab) {
+        requestAnimationFrame(() => document.querySelector(`[data-id="${cssEscape(tab.id)}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" }));
+      }
+    }
+
+    function openContextMenu(x, y, tab) {
+      closeContextMenu();
+      const menu = document.createElement("div");
+      menu.className = "context-menu";
+      menu.style.left = `${x}px`;
+      menu.style.top = `${y}px`;
+      menu.append(
+        contextButton("Open", () => openTab(tab)),
+        contextButton("Copy URL", () => copyText(tab.url)),
+        contextButton("Copy title", () => copyText(tab.title)),
+        contextButton("Copy markdown", () => copyText(formatExport([tab], "markdown"))),
+        contextButton("Filter domain", () => {
+          state.filters.query = tab.domain;
+          setInputMode("search");
+          syncHash();
+          render();
+        })
+      );
+      document.body.appendChild(menu);
+    }
+
+    function contextButton(label, action, options = {}) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = label;
+      button.disabled = Boolean(options.disabled);
+      button.addEventListener("click", (event) => {
+        event.stopPropagation();
+        if (button.disabled) return;
+        action();
+        closeContextMenu();
+      });
+      return button;
+    }
+
+    function closeContextMenu() {
+      document.querySelector(".context-menu")?.remove();
+    }
+
+    function openTab(tab) {
+      if (!tab?.url) return;
+      window.open(tab.url, "_blank", "noopener");
+    }
+
+    function copyText(text) {
+      navigator.clipboard.writeText(text).then(() => showToast("Copied")).catch(() => fallbackCopy(text));
+    }
+
+    function toggleTheme() {
+      const current = document.documentElement.dataset.theme === "light" ? "dark" : "light";
+      applyTheme(current);
+      localStorage.setItem("ffTabsViewerTheme", current);
+    }
+
+    function applyTheme(theme) {
+      document.documentElement.dataset.theme = theme;
+      syncThemeToggle(theme);
+    }
+
+    function syncThemeToggle(theme) {
+      const themeButton = $("themeButton");
+      const isLight = theme === "light";
+      const label = isLight ? "Switch to dark theme" : "Switch to light theme";
+      themeButton.setAttribute("aria-pressed", String(isLight));
+      themeButton.setAttribute("aria-label", label);
+      themeButton.title = label;
+    }
+
+    function bindSidebarResizer() {
+      let resizing = false;
+      let pointerId = null;
+      let startX = 0;
+      let startWidth = state.sidebarWidth;
+
+      els.sidebarResizer.addEventListener("pointerdown", (event) => {
+        if (window.matchMedia("(max-width: 1050px)").matches) return;
+        event.preventDefault();
+        resizing = true;
+        pointerId = event.pointerId;
+        startX = event.clientX;
+        startWidth = state.sidebarWidth;
+        els.sidebarResizer.setPointerCapture(pointerId);
+        els.sidebarResizer.classList.add("active");
+        document.body.classList.add("resizing-sidebar");
+      });
+
+      els.sidebarResizer.addEventListener("pointermove", (event) => {
+        if (!resizing || event.pointerId !== pointerId) return;
+        setSidebarWidth(startWidth + event.clientX - startX);
+      });
+
+      for (const eventName of ["pointerup", "pointercancel"]) {
+        els.sidebarResizer.addEventListener(eventName, (event) => {
+          if (!resizing || event.pointerId !== pointerId) return;
+          resizing = false;
+          if (els.sidebarResizer.hasPointerCapture(pointerId)) {
+            els.sidebarResizer.releasePointerCapture(pointerId);
+          }
+          pointerId = null;
+          els.sidebarResizer.classList.remove("active");
+          document.body.classList.remove("resizing-sidebar");
+          savePreferences();
+        });
+      }
+
+      els.sidebarResizer.addEventListener("keydown", (event) => {
+        if (window.matchMedia("(max-width: 1050px)").matches) return;
+        const step = event.shiftKey ? 40 : 16;
+        let nextWidth = null;
+        if (event.key === "ArrowLeft") nextWidth = state.sidebarWidth - step;
+        if (event.key === "ArrowRight") nextWidth = state.sidebarWidth + step;
+        if (event.key === "Home") nextWidth = SIDEBAR_WIDTH_MIN;
+        if (event.key === "End") nextWidth = sidebarMaxWidth();
+        if (nextWidth === null) return;
+        event.preventDefault();
+        setSidebarWidth(nextWidth);
+        savePreferences();
+      });
+    }
+
+    function setSidebarWidth(width) {
+      state.sidebarWidth = clamp(Math.round(width), SIDEBAR_WIDTH_MIN, sidebarMaxWidth());
+      applySidebarWidth();
+    }
+
+    function applySidebarWidth() {
+      els.main.style.setProperty("--sidebar-width", `${state.sidebarWidth}px`);
+      els.sidebarResizer.setAttribute("aria-valuenow", String(state.sidebarWidth));
+    }
+
+    function toggleSidebar() {
+      if (!state.tabs.length) return;
+      state.sidebarOpen = !state.sidebarOpen;
+      applySidebarVisibility({ animate: true });
+      savePreferences();
+    }
+
+    function applySidebarVisibility({ animate = false } = {}) {
+      const hasSidebarContent = state.tabs.length > 0;
+      const isOpen = hasSidebarContent && state.sidebarOpen;
+      els.exportJsonButton.disabled = !hasSidebarContent;
+      els.sidebarToggle.disabled = !hasSidebarContent;
+      els.sidebarToggle.setAttribute("aria-expanded", String(isOpen));
+      els.sidebarToggle.title = isOpen ? "Hide insights" : "Show insights";
+
+      if (sidebarVisibilityTimer) {
+        clearTimeout(sidebarVisibilityTimer);
+        sidebarVisibilityTimer = null;
+      }
+
+      if (isOpen) {
+        els.main.classList.remove("sidebar-hidden");
+        els.sidebar.classList.remove("hidden", "sidebar-collapsing");
+        els.sidebarResizer.classList.remove("hidden");
+        if (animate) {
+          els.sidebar.classList.add("sidebar-revealing");
+          sidebarVisibilityTimer = setTimeout(() => {
+            els.sidebar.classList.remove("sidebar-revealing");
+            sidebarVisibilityTimer = null;
+          }, 190);
+        }
+        return;
+      }
+
+      els.sidebarResizer.classList.add("hidden");
+      els.sidebar.classList.remove("sidebar-revealing");
+      if (animate && !els.sidebar.classList.contains("hidden")) {
+        els.sidebar.classList.add("sidebar-collapsing");
+        sidebarVisibilityTimer = setTimeout(() => {
+          els.sidebar.classList.add("hidden");
+          els.sidebar.classList.remove("sidebar-collapsing");
+          els.main.classList.add("sidebar-hidden");
+          sidebarVisibilityTimer = null;
+        }, 170);
+      } else {
+        els.sidebar.classList.add("hidden");
+        els.sidebar.classList.remove("sidebar-collapsing");
+        els.main.classList.add("sidebar-hidden");
+      }
+    }
+
+    function sidebarMaxWidth() {
+      const mainWidth = els.main.getBoundingClientRect().width || window.innerWidth;
+      return Math.max(SIDEBAR_WIDTH_MIN, Math.min(SIDEBAR_WIDTH_MAX, mainWidth - 360));
+    }
+
+    function restorePreferences() {
+      const theme = localStorage.getItem("ffTabsViewerTheme") || DEFAULT_THEME;
+      applyTheme(theme);
+      try {
+        const saved = JSON.parse(localStorage.getItem("ffTabsViewerPrefs") || "{}");
+        const { sidebarWidth, sidebarOpen, ...filters } = saved;
+        Object.assign(state.filters, filters);
+        if (Number.isFinite(sidebarWidth)) {
+          state.sidebarWidth = clamp(sidebarWidth, SIDEBAR_WIDTH_MIN, SIDEBAR_WIDTH_MAX);
+        }
+        if (typeof sidebarOpen === "boolean") state.sidebarOpen = sidebarOpen;
+      } catch {
+        // Ignore corrupt preferences; the defaults are useful.
+      }
+    }
+
+    function savePreferences() {
+      localStorage.setItem("ffTabsViewerPrefs", JSON.stringify({
+        groupBy: state.filters.groupBy,
+        sortBy: state.filters.sortBy,
+        density: state.filters.density,
+        sidebarWidth: state.sidebarWidth,
+        sidebarOpen: state.sidebarOpen,
+      }));
+    }
+
+    function applyControlsFromState() {
+      state.commandPaletteOpen = false;
+      els.searchInput.value = state.filters.query;
+      els.commandInput.value = state.commandQuery;
+      els.profileFilter.value = state.filters.profile;
+      els.containerFilter.value = state.filters.container;
+      els.ageFilter.value = state.filters.age;
+      els.windowFilter.value = state.filters.window;
+      els.groupBy.value = state.filters.groupBy;
+      els.sortBy.value = state.filters.sortBy;
+      els.density.value = state.filters.density;
+      document.body.classList.toggle("density-compact", state.filters.density === "compact");
+      document.body.classList.toggle("density-cards", state.filters.density === "cards");
+      syncSearchAssist();
+      renderActiveFilters();
+    }
+
+    function syncHash() {
+      const params = new URLSearchParams();
+      for (const [key, value] of Object.entries(state.filters)) {
+        if (value && !["all", "natural", "window", "comfy"].includes(value)) params.set(key, value);
+      }
+      if (state.duplicateUrl) params.set("duplicate", state.duplicateUrl);
+      history.replaceState(null, "", `${location.pathname}${location.search}${params.toString() ? `#${params}` : ""}`);
+    }
+
+    function applyHash() {
+      if (!location.hash) return;
+      const params = new URLSearchParams(location.hash.slice(1));
+      for (const key of Object.keys(state.filters)) {
+        if (params.has(key)) state.filters[key] = params.get(key);
+      }
+      state.duplicateUrl = params.get("duplicate") || "";
+      applyControlsFromState();
+      if (state.tabs.length) render();
+    }
+
+    function ageBucket(tab) {
+      if (!tab.lastAccessed) return "unknown";
+      const age = Date.now() - tab.lastAccessed;
+      if (age <= ONE_DAY) return "today";
+      if (age <= 7 * ONE_DAY) return "7d";
+      if (age <= 30 * ONE_DAY) return "30d";
+      if (age <= 365 * ONE_DAY) return "1y";
+      if (age <= 2 * 365 * ONE_DAY) return "gt1y";
+      return "gt2y";
+    }
+
+    function ageLabel(key) {
+      return AGE_BUCKETS.find(([bucket]) => bucket === key)?.[1] || key;
+    }
+
+    function relativeTime(ms) {
+      if (!ms) return "unknown";
+      const delta = Date.now() - ms;
+      const abs = Math.abs(delta);
+      const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
+      const units = [
+        ["year", 365 * ONE_DAY],
+        ["month", 30 * ONE_DAY],
+        ["week", 7 * ONE_DAY],
+        ["day", ONE_DAY],
+        ["hour", 60 * 60 * 1000],
+        ["minute", 60 * 1000],
+      ];
+      for (const [unit, size] of units) {
+        if (abs >= size) return rtf.format(Math.round(-delta / size), unit);
+      }
+      return "just now";
+    }
+
+    function domainFromUrl(url) {
+      try {
+        return new URL(url).hostname.replace(/^www\./, "");
+      } catch {
+        return "";
+      }
+    }
+
+    function shortUrl(url) {
+      try {
+        const parsed = new URL(url);
+        const path = parsed.pathname.length > 24 ? `${parsed.pathname.slice(0, 24)}...` : parsed.pathname;
+        return `${parsed.hostname.replace(/^www\./, "")}${path}`;
+      } catch {
+        return url.slice(0, 48);
+      }
+    }
+
+    function countBy(items, fn) {
+      const map = new Map();
+      for (const item of items) {
+        const key = fn(item);
+        map.set(key, (map.get(key) || 0) + 1);
+      }
+      return map;
+    }
+
+    function uniqueSorted(values, numeric = false) {
+      const sorted = [...new Set(values.filter((value) => value !== undefined && value !== null))];
+      return sorted.sort((a, b) => numeric ? Number(a) - Number(b) : String(a).localeCompare(String(b)));
+    }
+
+    function chip(containerOrName) {
+      const container = normalizeContainerMetadata(containerOrName);
+      const node = document.createElement("span");
+      node.className = "chip";
+      const background = containerColor(container);
+      node.style.setProperty("--chip", background);
+      node.style.setProperty("--chip-text", readableTextColor(background));
+      node.title = container.icon || container.color
+        ? `${container.name} (${[container.color, container.icon].filter(Boolean).join(", ")})`
+        : container.name;
+      const icon = containerIcon(container.icon);
+      if (icon) {
+        node.classList.add("has-icon");
+        node.appendChild(icon);
+      }
+      node.append(document.createTextNode(container.name));
+      return node;
+    }
+
+    function pill(text) {
+      const node = document.createElement("span");
+      node.className = "pill";
+      node.textContent = text;
+      return node;
+    }
+
+    function normalizeContainerMetadata(containerOrName, fallbackId = 0) {
+      if (typeof containerOrName === "string") {
+        return containerFromParts({ name: containerOrName }, fallbackId);
+      }
+      if (!containerOrName || typeof containerOrName !== "object") {
+        return containerFromParts({ id: 0, name: NO_CONTAINER_NAME, color: "grey" }, 0);
+      }
+      return containerFromParts(containerOrName, fallbackId);
+    }
+
+    function containerFromParts(parts, fallbackId = 0) {
+      const rawId = Number(parts.id ?? fallbackId);
+      const id = Number.isFinite(rawId) ? rawId : 0;
+      const name = cleanContainerToken(parts.name) || (id ? `Container #${id}` : NO_CONTAINER_NAME);
+      const color = cleanContainerToken(parts.color);
+      const icon = cleanContainerToken(parts.icon);
+      const colorCode = safeCssColor(cleanContainerToken(parts.colorCode)) || containerColorCode(color, name);
+      return { id, name, color, icon, colorCode };
+    }
+
+    function cleanContainerToken(value) {
+      return value == null ? "" : String(value).trim();
+    }
+
+    function containerColor(containerOrName) {
+      const container = typeof containerOrName === "object"
+        ? containerOrName
+        : normalizeContainerMetadata(containerOrName);
+      if (container.colorCode && safeCssColor(container.colorCode)) return container.colorCode;
+      return containerColorCode(container.color, container.name);
+    }
+
+    function containerColorCode(color, name) {
+      const key = String(color || "").toLowerCase();
+      if (FIREFOX_CONTAINER_COLOR_CODES[key]) return FIREFOX_CONTAINER_COLOR_CODES[key];
+      if (LEGACY_CONTAINER_COLORS[name]) return LEGACY_CONTAINER_COLORS[name];
+      let hash = 0;
+      for (let i = 0; i < name.length; i += 1) hash = ((hash << 5) - hash + name.charCodeAt(i)) | 0;
+      return `hsl(${Math.abs(hash) % 360} 78% 68%)`;
+    }
+
+    function readableTextColor(background) {
+      const rgb = cssColorToRgb(background);
+      if (!rgb) return "#000000";
+      const black = [0, 0, 0];
+      const white = [255, 255, 255];
+      return perceptualContrast(rgb, black) >= perceptualContrast(rgb, white) ? "#000000" : "#ffffff";
+    }
+
+    function cssColorToRgb(color) {
+      const value = String(color || "").trim();
+      const hex = value.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
+      if (hex) {
+        const normalized = hex[1].length === 3
+          ? hex[1].split("").map((part) => part + part).join("")
+          : hex[1];
+        return [
+          parseInt(normalized.slice(0, 2), 16),
+          parseInt(normalized.slice(2, 4), 16),
+          parseInt(normalized.slice(4, 6), 16),
+        ];
+      }
+      const hsl = value.match(/^hsl\(\s*(\d{1,3})\s+(\d{1,3})%\s+(\d{1,3})%\s*\)$/i);
+      if (hsl) return hslToRgb(Number(hsl[1]), Number(hsl[2]), Number(hsl[3]));
+      return null;
+    }
+
+    function hslToRgb(h, s, l) {
+      const hue = ((h % 360) + 360) % 360 / 360;
+      const saturation = clamp(s, 0, 100) / 100;
+      const lightness = clamp(l, 0, 100) / 100;
+      if (saturation === 0) {
+        const channel = Math.round(lightness * 255);
+        return [channel, channel, channel];
+      }
+      const q = lightness < 0.5
+        ? lightness * (1 + saturation)
+        : lightness + saturation - lightness * saturation;
+      const p = 2 * lightness - q;
+      return [hue + 1 / 3, hue, hue - 1 / 3].map((part) => {
+        let t = part;
+        if (t < 0) t += 1;
+        if (t > 1) t -= 1;
+        if (t < 1 / 6) return Math.round((p + (q - p) * 6 * t) * 255);
+        if (t < 1 / 2) return Math.round(q * 255);
+        if (t < 2 / 3) return Math.round((p + (q - p) * (2 / 3 - t) * 6) * 255);
+        return Math.round(p * 255);
+      });
+    }
+
+    function contrastRatio(a, b) {
+      const lighter = Math.max(relativeLuminance(a), relativeLuminance(b));
+      const darker = Math.min(relativeLuminance(a), relativeLuminance(b));
+      return (lighter + 0.05) / (darker + 0.05);
+    }
+
+    function perceptualContrast(backgroundRgb, textRgb) {
+      const bg = relativeLuminance(backgroundRgb);
+      const text = relativeLuminance(textRgb);
+      return text < bg
+        ? (Math.pow(bg, 0.56) - Math.pow(text, 0.57)) * 1.14
+        : (Math.pow(text, 0.56) - Math.pow(bg, 0.57)) * 1.14;
+    }
+
+    function relativeLuminance(rgb) {
+      const [r, g, b] = rgb.map((channel) => {
+        const value = channel / 255;
+        return value <= 0.03928
+          ? value / 12.92
+          : Math.pow((value + 0.055) / 1.055, 2.4);
+      });
+      return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    }
+
+    function safeCssColor(value) {
+      const color = String(value || "").trim();
+      if (/^#[0-9a-f]{3}([0-9a-f]{3})?$/i.test(color)) return color;
+      if (/^hsl\(\d{1,3}\s+\d{1,3}%\s+\d{1,3}%\)$/i.test(color)) return color;
+      return "";
+    }
+
+    function containerIcon(iconName) {
+      const markup = FIREFOX_CONTAINER_ICON_MARKUP[String(iconName || "").toLowerCase()];
+      if (!markup) return null;
+      const wrapper = document.createElement("span");
+      wrapper.className = "chip-icon";
+      wrapper.setAttribute("aria-hidden", "true");
+      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      svg.setAttribute("viewBox", "0 0 16 16");
+      svg.innerHTML = markup;
+      wrapper.appendChild(svg);
+      return wrapper;
+    }
+
+    function formatBytes(bytes) {
+      if (bytes < 1024) return `${bytes} B`;
+      if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+      return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+    }
+
+    function debounce(fn, delay) {
+      let id;
+      return (...args) => {
+        clearTimeout(id);
+        id = setTimeout(() => fn(...args), delay);
+      };
+    }
+
+    function clamp(value, min, max) {
+      return Math.min(max, Math.max(min, value));
+    }
+
+    function escapeHtml(text) {
+      return text.replace(/[&<>"']/g, (char) => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      })[char]);
+    }
+
+    function escapeMarkdown(text) {
+      return text.replace(/([\\[\]()])/g, "\\$1");
+    }
+
+    function cssEscape(value) {
+      if (window.CSS?.escape) return CSS.escape(value);
+      return value.replace(/["\\]/g, "\\$&");
+    }
+
+    function iconForCommand(type) {
+      return {
+        action: "!",
+        group: "G",
+        sort: "A",
+        view: "D",
+        age: "T",
+        tab: "↗",
+        container: "●",
+        window: "▣",
+      }[type] || "•";
+    }
+
+    function showToast(message) {
+      els.toast.textContent = message;
+      els.toast.classList.add("show");
+      clearTimeout(showToast.timer);
+      showToast.timer = setTimeout(() => els.toast.classList.remove("show"), 2400);
+    }
+
+    init();
+  </script>
+</body>
+</html>
