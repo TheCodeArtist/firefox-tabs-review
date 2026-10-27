@@ -19,6 +19,9 @@
       --accent-2: #b8a7ff;
       --shadow: 0 18px 60px rgba(0, 0, 0, .35);
       --radius: 14px;
+      --control-size: 36px;
+      --control-radius: 8px;
+      --control-gap: 8px;
       --row-height: 56px;
       font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
@@ -93,13 +96,18 @@
     button, select, .file-button {
       border: 1px solid var(--border);
       background: var(--panel-2);
-      border-radius: 10px;
-      padding: 8px 10px;
+      border-radius: var(--control-radius);
+      padding: 7px 12px;
+      line-height: 20px;
       color: var(--text);
       cursor: pointer;
     }
 
     button:hover, .file-button:hover, select:hover { border-color: var(--accent); }
+    button:focus-visible, select:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
     button:disabled {
       cursor: not-allowed;
       opacity: .55;
@@ -190,25 +198,27 @@
 
     .toolbar-actions {
       display: flex;
-      gap: 8px;
+      gap: var(--control-gap);
       flex-wrap: wrap;
       justify-content: flex-end;
       align-items: center;
     }
 
     .toolbar-icon-button {
-      width: 34px;
-      height: 34px;
+      width: var(--control-size);
+      height: var(--control-size);
       padding: 0;
-      display: inline-grid;
-      place-items: center;
-      border-radius: 11px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 auto;
     }
 
     .toolbar-icon-button svg {
       width: 18px;
       height: 18px;
       display: block;
+      flex: 0 0 auto;
       fill: none;
       stroke: currentColor;
       stroke-width: 1.8;
@@ -216,72 +226,9 @@
       stroke-linejoin: round;
     }
 
-    .theme-toggle {
-      width: 50px;
-      height: 28px;
-      padding: 0;
-      border-radius: 999px;
-      display: inline-grid;
-      place-items: center;
-      overflow: hidden;
-    }
-
-    .theme-toggle-track {
-      position: relative;
-      width: 100%;
-      height: 100%;
-      border-radius: inherit;
-      display: block;
-      background: linear-gradient(135deg, #111827, #263349);
-      transition: background .18s ease;
-    }
-
-    :root[data-theme="light"] .theme-toggle-track {
-      background: linear-gradient(135deg, #dff1ff, #fff0b8);
-    }
-
-    .theme-toggle-thumb {
-      position: absolute;
-      top: 3px;
-      left: 3px;
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
-      display: grid;
-      place-items: center;
-      background: #f7fafc;
-      box-shadow: 0 4px 14px rgba(0, 0, 0, .3);
-      transition: transform .18s ease, background .18s ease;
-    }
-
-    .theme-toggle-thumb::before {
-      content: "";
-      width: 11px;
-      height: 11px;
-      border-radius: 50%;
-      box-shadow: inset 5px -3px 0 1px #263349;
-      transition: background .18s ease, box-shadow .18s ease;
-    }
-
-    :root[data-theme="light"] .theme-toggle-thumb {
-      transform: translateX(24px);
-      background: #ffd166;
-    }
-
-    :root[data-theme="light"] .theme-toggle-thumb::before {
-      width: 9px;
-      height: 9px;
-      background: #8a4f00;
-      box-shadow:
-        0 -7px 0 -4px #8a4f00,
-        0 7px 0 -4px #8a4f00,
-        7px 0 0 -4px #8a4f00,
-        -7px 0 0 -4px #8a4f00,
-        5px 5px 0 -4px #8a4f00,
-        -5px 5px 0 -4px #8a4f00,
-        5px -5px 0 -4px #8a4f00,
-        -5px -5px 0 -4px #8a4f00;
-    }
+    .theme-toggle .theme-moon { display: none; }
+    :root[data-theme="light"] .theme-toggle .theme-sun { display: none; }
+    :root[data-theme="light"] .theme-toggle .theme-moon { display: block; }
 
     .filters {
       display: grid;
@@ -334,7 +281,7 @@
       padding: 0;
       display: grid;
       place-items: center;
-      border-radius: 11px;
+      border-radius: var(--control-radius);
     }
 
     .sidebar-toggle[aria-expanded="true"] {
@@ -404,8 +351,9 @@
       grid-row: 1;
       width: 100%;
       border: 1px solid var(--border);
-      border-radius: 12px 0 0 12px;
-      padding: 10px 40px 10px 12px;
+      border-radius: var(--control-radius) 0 0 var(--control-radius);
+      padding: 7px 40px 7px 12px;
+      line-height: 20px;
       background: var(--panel);
       outline: none;
       min-width: 0;
@@ -434,7 +382,7 @@
       grid-row: 1;
       position: relative;
       z-index: 1;
-      border-radius: 0 12px 12px 0;
+      border-radius: 0 var(--control-radius) var(--control-radius) 0;
       border-left: 0;
       display: inline-flex;
       align-items: center;
@@ -447,7 +395,8 @@
     .command-button .button-kbd {
       border: 1px solid var(--border);
       border-radius: 6px;
-      padding: 1px 5px;
+      padding: 0 4px;
+      line-height: 16px;
       color: var(--muted);
       background: var(--panel);
       font-size: 11px;
@@ -762,7 +711,7 @@
     .metric {
       border: 1px solid var(--border);
       background: var(--panel-2);
-      border-radius: 10px;
+      border-radius: var(--control-radius);
       padding: 8px 9px;
       cursor: pointer;
       display: grid;
@@ -1131,8 +1080,8 @@
 
     .load-step .copy-btn,
     .load-step .primary-load-btn {
-      padding: 8px 14px;
-      font-size: 12.5px;
+      padding: 7px 12px;
+      font-size: 13px;
     }
 
     .load-step[data-state="done"] .load-step-actions .primary-load-btn,
@@ -1141,9 +1090,9 @@
     }
 
     .load-step .ghost-btn {
-      border-radius: 10px;
-      padding: 8px 12px;
-      font-size: 12.5px;
+      border-radius: var(--control-radius);
+      padding: 7px 12px;
+      font-size: 13px;
       font-weight: 600;
       background: transparent;
       color: var(--muted);
@@ -1414,13 +1363,17 @@
     }
 
     .copy-btn {
-      border-radius: 10px;
-      padding: 8px 14px;
-      font-size: 12.5px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--control-radius);
+      padding: 7px 12px;
+      font-size: 13px;
+      line-height: 20px;
       font-weight: 600;
       background: linear-gradient(135deg, var(--accent), #ffd2b8);
       color: #111;
-      border: none;
+      border: 1px solid transparent;
       cursor: pointer;
       white-space: nowrap;
       text-align: center;
@@ -1690,7 +1643,7 @@
       color: var(--muted);
     }
 
-    .tab-actions button { padding: 5px 8px; white-space: nowrap; }
+    .tab-actions button { padding: 3px 8px; white-space: nowrap; }
     .tab-actions .find-tab { color: var(--text); }
     .snapshot-strip {
       display: flex; align-items: center; flex-wrap: wrap; gap: 7px 16px;
@@ -1698,11 +1651,10 @@
     }
     .snapshot-strip strong { color: var(--text); }
     .brand > :last-child { min-width: 0; }
-    .snapshot-loader { width: auto; display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
-    .snapshot-loader svg { width: 18px; height: 18px; flex: 0 0 auto; }
+    .snapshot-loader { width: auto; padding-inline: 12px; gap: var(--control-gap); white-space: nowrap; }
     .tab-row.reviewed .tab-title::before { content: "✓"; color: var(--accent); }
     .tab-row.reviewed .tab-title { font-weight: 400; }
-    .density-compact .tab-actions button { padding: 2px 6px; font-size: 11px; }
+    .density-compact .tab-actions button { padding: 1px 6px; font-size: 12px; line-height: 18px; }
     .tab-guide { padding: 22px; display: grid; gap: 16px; }
     .tab-guide h2, .tab-guide h3, .tab-guide p { margin: 0; }
     .guide-header, .guide-tools, .guide-query, .guide-footer, .guide-modes {
@@ -1722,8 +1674,9 @@
     .guide-tools { justify-content: space-between; margin-bottom: 7px; }
     .guide-tools label { color: var(--muted); }
     .guide-query input {
-      min-width: 0; flex: 1 1 200px; padding: 10px; border-radius: 8px;
+      min-width: 0; flex: 1 1 200px; padding: 7px 10px; border-radius: var(--control-radius);
       border: 1px solid var(--border); background: var(--bg); font: inherit;
+      line-height: 20px;
     }
     .guide-steps { display: grid; gap: 16px; padding: 0; margin: 0; list-style: none; counter-reset: guide; }
     .guide-step { counter-increment: guide; display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 10px; }
@@ -1971,11 +1924,11 @@
     }
 
     .help-close {
-      width: 34px;
-      height: 34px;
+      width: var(--control-size);
+      height: var(--control-size);
       padding: 0;
       flex: 0 0 auto;
-      border-radius: 50%;
+      border-radius: var(--control-radius);
       display: grid;
       place-items: center;
       background: color-mix(in srgb, var(--panel-2) 84%, transparent);
@@ -2261,13 +2214,17 @@
     }
 
     .primary-load-btn {
-      padding: 10px 18px;
-      border-radius: 12px;
-      font-size: 13.5px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 7px 12px;
+      border-radius: var(--control-radius);
+      font-size: 13px;
+      line-height: 20px;
       font-weight: 700;
       background: linear-gradient(135deg, var(--accent), #ffd2b8);
       color: #111;
-      border: none;
+      border: 1px solid transparent;
       cursor: pointer;
       white-space: nowrap;
     }
@@ -2316,7 +2273,7 @@
     .palette-item {
       border: 1px solid transparent;
       background: transparent;
-      border-radius: 12px;
+      border-radius: var(--control-radius);
       padding: 10px;
       display: grid;
       grid-template-columns: 22px minmax(0, 1fr) auto;
@@ -2566,12 +2523,21 @@
               <path d="M9 7V4h6v3"></path>
             </svg>
           </button>
-          <button id="themeButton" class="theme-toggle" type="button" aria-label="Switch to light theme" aria-pressed="false" title="Switch to light theme">
-            <span class="theme-toggle-track" aria-hidden="true">
-              <span class="theme-toggle-thumb"></span>
-            </span>
+          <button id="themeButton" class="toolbar-icon-button theme-toggle" type="button" aria-label="Switch to light theme" aria-pressed="false" title="Switch to light theme">
+            <svg class="theme-sun" viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="12" r="4"></circle>
+              <path d="M12 2v2m0 16v2M2 12h2m16 0h2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"></path>
+            </svg>
+            <svg class="theme-moon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M20.9 13a9 9 0 0 1-9.9-9.9A9 9 0 1 0 20.9 13Z"></path>
+            </svg>
           </button>
-          <button id="helpButton" type="button" class="ghost">?</button>
+          <button id="helpButton" class="toolbar-icon-button" type="button" aria-label="Help and shortcuts" title="Help and shortcuts">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="12" r="9"></circle>
+              <path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 2-3 4m.1 3h.01"></path>
+            </svg>
+          </button>
         </div>
       </div>
       <div id="snapshotStatus" class="snapshot-strip hidden" aria-label="Imported snapshot details">
