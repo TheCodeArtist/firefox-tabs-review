@@ -1690,6 +1690,58 @@
       color: var(--muted);
     }
 
+    .tab-actions button { padding: 5px 8px; white-space: nowrap; }
+    .tab-actions .find-tab { color: var(--text); }
+    .snapshot-strip {
+      display: flex; align-items: center; flex-wrap: wrap; gap: 7px 16px;
+      padding: 0 18px 12px; color: var(--muted); line-height: 1.5;
+    }
+    .snapshot-strip strong { color: var(--text); }
+    .brand > :last-child { min-width: 0; }
+    .snapshot-loader { width: auto; display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
+    .snapshot-loader svg { width: 18px; height: 18px; flex: 0 0 auto; }
+    .tab-row.reviewed .tab-title::before { content: "✓"; color: var(--accent); }
+    .tab-row.reviewed .tab-title { font-weight: 400; }
+    .density-compact .tab-actions button { padding: 2px 6px; font-size: 11px; }
+    .tab-guide { padding: 22px; display: grid; gap: 16px; }
+    .tab-guide h2, .tab-guide h3, .tab-guide p { margin: 0; }
+    .guide-header, .guide-tools, .guide-query, .guide-footer, .guide-modes {
+      display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+    }
+    .guide-header { justify-content: space-between; }
+    .guide-header h2 { font-size: 19px; }
+    .guide-header label { display: flex; gap: 6px; align-items: center; color: var(--muted); }
+    .guide-target { padding: 12px; background: var(--panel-2); border-radius: 10px; display: grid; gap: 7px; }
+    .guide-target strong, .guide-target p { overflow-wrap: anywhere; }
+    .guide-target p, .guide-note, .guide-step p { color: var(--muted); line-height: 1.6; }
+    .guide-metadata { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; color: var(--muted); }
+    .guide-metadata > * { max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
+    .guide-modes button[aria-pressed="true"], .guide-primary {
+      color: var(--text); border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--panel));
+    }
+    .guide-tools { justify-content: space-between; margin-bottom: 7px; }
+    .guide-tools label { color: var(--muted); }
+    .guide-query input {
+      min-width: 0; flex: 1 1 200px; padding: 10px; border-radius: 8px;
+      border: 1px solid var(--border); background: var(--bg); font: inherit;
+    }
+    .guide-steps { display: grid; gap: 16px; padding: 0; margin: 0; list-style: none; counter-reset: guide; }
+    .guide-step { counter-increment: guide; display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 10px; }
+    .guide-step::before {
+      content: counter(guide); border: 1px solid var(--border); border-radius: 50%;
+      width: 26px; height: 26px; display: grid; place-items: center; color: var(--accent);
+    }
+    .guide-step h3 { font-size: 14px; margin: 3px 0 5px; }
+    .guide-copy-status { margin-top: 7px !important; color: var(--accent); line-height: 1.5; }
+    .guide-warning { border-left: 3px solid var(--accent); padding: 9px 12px; background: var(--panel-2); line-height: 1.6; }
+    .guide-footer { justify-content: space-between; border-top: 1px solid var(--border); padding-top: 14px; }
+    .tab-guide details { color: var(--muted); line-height: 1.6; }
+    .tab-guide summary { cursor: pointer; color: var(--text); }
+    .tab-guide details p { margin-top: 8px; }
+    .tab-guide a { text-decoration: underline; }
+    .tab-guide kbd { white-space: nowrap; }
+    #tabGuideDialog { max-height: calc(100dvh - 24px); overflow-y: auto; }
+
     .density-compact { --row-height: 34px; }
     .density-compact .content { gap: 2px; }
     .density-compact .group-toolbar {
@@ -2463,6 +2515,12 @@
       }
     }
 
+    @media (max-width: 700px) {
+      .tab-row, .density-compact .tab-row { grid-template-columns: 24px 22px minmax(0, 1fr); }
+      .tab-actions { grid-column: 3; flex-wrap: wrap; }
+      .tab-guide { padding: 16px; }
+    }
+
     @media (prefers-reduced-motion: reduce) {
       aside.sidebar-revealing,
       aside.sidebar-collapsing {
@@ -2483,12 +2541,13 @@
           </div>
         </div>
         <div class="toolbar-actions">
-          <button id="loaderButton" class="toolbar-icon-button" type="button" aria-label="Load tabs" title="Load tabs...">
+          <button id="loaderButton" class="toolbar-icon-button snapshot-loader" type="button" title="Choose Firefox files to import a snapshot">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M4 19V5a2 2 0 0 1 2-2h5l2 3h5a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z"></path>
               <path d="M12 16V9"></path>
               <path d="m9 12 3-3 3 3"></path>
             </svg>
+            <span id="loaderButtonLabel">Load snapshot</span>
           </button>
           <button id="exportJsonButton" class="toolbar-icon-button" type="button" aria-label="Export reloadable JSON" title="Export reloadable JSON..." disabled>
             <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -2514,6 +2573,12 @@
           </button>
           <button id="helpButton" type="button" class="ghost">?</button>
         </div>
+      </div>
+      <div id="snapshotStatus" class="snapshot-strip hidden" aria-label="Imported snapshot details">
+        <strong>Imported snapshot</strong>
+        <time id="snapshotTime" title="Timestamp recorded in the imported data; raw session files use their import time."></time>
+        <span id="snapshotCounts" role="status" aria-live="polite"></span>
+        <span>Browser changes aren’t tracked.</span>
       </div>
       <div class="filters">
         <button id="sidebarToggle" class="sidebar-toggle" type="button" aria-controls="sidebar" aria-expanded="false" title="Show insights" disabled>
@@ -2583,7 +2648,7 @@
     <main id="appMain" class="sidebar-hidden">
       <aside id="sidebar" class="hidden">
         <section class="card">
-          <h2>Snapshot</h2>
+          <h2>Imported snapshot</h2>
           <div id="summaryStats" class="card-body stat-grid"></div>
         </section>
         <section class="card">
@@ -2668,7 +2733,7 @@
             <span class="help-number">3</span>
             <div>
               <strong>Act on results</strong>
-              <p>Open tabs, select ranges, copy/export, or run commands.</p>
+              <p>Find an existing tab in Firefox, mark it reviewed locally, or open another copy. Select ranges to copy/export.</p>
             </div>
           </div>
         </div>
@@ -2682,7 +2747,8 @@
               <div class="shortcut-item"><kbd>?</kbd><span>Open help.</span></div>
               <div class="shortcut-item"><kbd>j / k</kbd><span>Move active tab down or up.</span></div>
               <div class="shortcut-item"><kbd>↓ / ↑</kbd><span>Move in list or command palette.</span></div>
-              <div class="shortcut-item"><kbd>Enter</kbd><span>Open tab or run command.</span></div>
+              <div class="shortcut-item"><kbd>f</kbd><span>Find the active tab in Firefox (copies search).</span></div>
+              <div class="shortcut-item"><kbd>Enter</kbd><span>Open another copy or run command.</span></div>
               <div class="shortcut-item"><kbd>x</kbd><span>Toggle active tab selection.</span></div>
               <div class="shortcut-item"><kbd>Shift x</kbd><span>Select previous-to-current range.</span></div>
               <div class="shortcut-item"><kbd>g g</kbd><span>Jump to first match.</span></div>
@@ -2725,12 +2791,19 @@
           <section class="help-card selection-card">
             <h3>Selection and Export</h3>
             <ul class="help-list">
-              <li>Click a row or use the keyboard to set the active tab. Double-click opens it.</li>
+              <li>Click a row or use the keyboard to set the active tab. Double-click or click its title to open another copy.</li>
+              <li>Find tab copies a Firefox <code>%</code> search and shows switching steps. Compare the page, full URL, and container to choose the intended copy.</li>
               <li>Select tabs with checkboxes or <kbd>x</kbd>. Use <kbd>Shift x</kbd> for a contiguous range.</li>
               <li>The bulk bar can open selected tabs, copy URLs, copy Markdown, or copy OneTab format.</li>
               <li>Export JSON downloads a reloadable snapshot with favicons. Drop it back in to reload later.</li>
-              <li>Right-click a row to open, copy URL, copy title, copy Markdown, or filter by domain.</li>
+              <li>Right-click a row for Find tab, Open another copy, copy actions, or Filter domain.</li>
+              <li>Mark reviewed locally tracks your review progress. All rows stay in the imported snapshot, and counts describe that snapshot.</li>
+              <li>Load newer snapshot opens the file picker flow. Choose a fresh Firefox session file to update the list; refreshing the viewer restores the saved snapshot.</li>
             </ul>
+            <details>
+              <summary>Closing a tab in Firefox (optional)</summary>
+              <p>After verifying the intended tab is active in Firefox, press <kbd>Ctrl+W</kbd> (<kbd>Cmd+W</kbd> on macOS). For a pinned tab, right-click it and choose Close Tab. Undo a mistaken close with <kbd>Ctrl+Shift+T</kbd> / <kbd>Cmd+Shift+T</kbd>. Browser changes do not update this snapshot; use Load newer snapshot to import current data.</p>
+            </details>
           </section>
         </div>
 
@@ -2746,8 +2819,8 @@
     <div id="dropzone" class="dropzone dropzone-modal">
       <div>
         <div class="drop-icon" aria-hidden="true">&#x2193;</div>
-        <h2 id="dropTitle">Load your Firefox tabs</h2>
-        <p>Review a Firefox session locally. Your files stay in this browser.</p>
+        <h2 id="dropTitle">Load a Firefox snapshot</h2>
+        <p>Choose session files to replace the displayed snapshot. Your files stay in this browser.</p>
         <div class="drop-primary" aria-label="Primary load action">
           <strong>Drag your Firefox session files here</strong>
           <span>Drop <code>recovery.jsonlz4</code> and, optionally, <code>containers.json</code> from your Firefox profile folder.</span>
@@ -2806,6 +2879,68 @@
     </div>
   </dialog>
 
+  <dialog id="tabGuideDialog" aria-labelledby="tabGuideTitle" aria-describedby="guideScope">
+    <div class="tab-guide">
+      <div class="guide-header">
+        <h2 id="tabGuideTitle">Find this tab in Firefox</h2>
+        <button id="closeTabGuide" type="button" aria-label="Dismiss tab guide">Done</button>
+      </div>
+      <p id="guideScope" class="guide-note">Find a tab from this imported snapshot in Firefox. Browser changes do not update this list.</p>
+      <div class="guide-target">
+        <strong id="guideTargetTitle"></strong>
+        <p id="guideTargetUrl"></p>
+        <div id="guideTargetMeta" class="guide-metadata"></div>
+      </div>
+      <div class="guide-header">
+        <label>Shortcuts
+          <select id="guidePlatform" aria-label="Keyboard platform">
+            <option value="windows">Windows / Linux</option>
+            <option value="mac">macOS</option>
+          </select>
+        </label>
+      </div>
+      <div id="guideDuplicateWarning" class="guide-warning" hidden></div>
+      <ol class="guide-steps">
+        <li class="guide-step"><div>
+          <h3>Copy a search for this tab</h3>
+          <div class="guide-tools">
+            <label for="guideQuery">Firefox tab search · editable</label>
+            <div class="guide-modes" aria-label="Search using">
+              <button id="guideUseTitle" type="button" aria-pressed="true">Title</button>
+              <button id="guideUseUrl" type="button" aria-pressed="false">URL</button>
+            </div>
+          </div>
+          <div class="guide-query">
+            <input id="guideQuery" type="text" spellcheck="false" autocomplete="off" aria-describedby="guideQueryHelp guideCopyStatus">
+            <button id="guideCopySearch" type="button" class="guide-primary">Copy search</button>
+          </div>
+          <p id="guideQueryHelp">Keep <code>%</code> at the start to search only open tabs. Edit to use a distinctive phrase if needed.</p>
+          <p id="guideCopyStatus" class="guide-copy-status" role="status" aria-live="polite"></p>
+        </div></li>
+        <li class="guide-step"><div>
+          <h3>Paste into Firefox’s address bar</h3>
+          <p>Focus Firefox in the target profile. Press <kbd data-guide-key="address"></kbd>, then <kbd data-guide-key="paste"></kbd>.</p>
+          <p>Select the matching <strong>Switch to tab</strong> result with <kbd>↓ / ↑</kbd>, then <kbd>Enter</kbd>, or click it.</p>
+        </div></li>
+        <li class="guide-step"><div>
+          <h3 id="guideFinalTitle">Check the matching tab</h3>
+          <p>Compare the full URL, page content, and container with the target above. Snapshot window and tab positions are clues and may have changed.</p>
+        </div></li>
+      </ol>
+      <details id="guideTroubleshooting">
+        <summary>No match, or several identical matches?</summary>
+        <p>Try the URL search, or shorten the query to a distinctive title phrase or URL path. Make sure you are searching in the Firefox profile that contains the tab. If necessary, use Firefox’s List all tabs → Search tabs / Search All Tabs.</p>
+        <p>For identical copies, inspect the page and container in Firefox. This saved snapshot cannot identify a specific live copy.</p>
+        <p>The tab may have moved, navigated, or already closed since this snapshot. Use Load newer snapshot to choose a fresh <code>recovery.jsonlz4</code> from the same profile.</p>
+        <p><a href="https://support.mozilla.org/en-US/kb/search-open-tabs-firefox" target="_blank" rel="noopener">Firefox tab search</a> · <a href="https://support.mozilla.org/en-US/kb/keyboard-shortcuts-perform-firefox-tasks-quickly" target="_blank" rel="noopener">Keyboard shortcuts</a></p>
+      </details>
+      <div class="guide-footer">
+        <span class="guide-note">Local review only. All rows stay in this snapshot.</span>
+        <button id="guideMarkReviewed" type="button">Mark reviewed locally</button>
+      </div>
+    </div>
+  </dialog>
+
   <div id="toast" class="toast" popover="manual" role="status" aria-live="polite"></div>
 
   <script>
@@ -2837,8 +2972,12 @@
       commandQuery: "",
       commandPaletteOpen: false,
       ggPending: false,
+      snapshotFilename: "",
+      snapshotData: null,
       filters: { ...DEFAULT_FILTERS },
     };
+
+    const tabGuide = { tab: null, duplicateCount: 0, queryType: "title", copyAttempt: 0 };
 
     // Transient UI state for the two-step file loader. `state` is "session-only"
     // while step 1 is done but the optional containers.json step is still
@@ -2886,6 +3025,7 @@
       bulkBar: $("bulkBar"),
       selectedCount: $("selectedCount"),
       helpDialog: $("helpDialog"),
+      tabGuideDialog: $("tabGuideDialog"),
       dropDialog: $("dropDialog"),
       toast: $("toast"),
       stepSession: $("stepSession"),
@@ -3015,13 +3155,14 @@
     }
 
     function openDropDialog() {
-      if (state.tabs.length) return;
+      if (state.snapshotData) return;
       openLoaderDialog();
     }
 
     function openLoaderDialog() {
       if (!els.dropDialog) return;
       resetLoaderFlow();
+      $("dropTitle").textContent = state.snapshotData ? "Load newer snapshot" : "Load a Firefox snapshot";
       if (!els.dropDialog.open) {
         try { els.dropDialog.showModal(); }
         catch (_) { els.dropDialog.setAttribute("open", ""); }
@@ -3029,7 +3170,7 @@
     }
 
     function closeDropDialog() {
-      if (!state.tabs.length) return;
+      if (!state.snapshotData) return;
       // Don't close while step 2 is still pending so the user can finish
       // picking containers.json (or click "Skip").
       if (loaderFlow.state === "session-only") return;
@@ -3432,10 +3573,11 @@
       }
 
       els.dropDialog?.addEventListener("cancel", (event) => {
-        if (!state.tabs.length) event.preventDefault();
+        if (!state.snapshotData) event.preventDefault();
       });
       els.dropDialog?.addEventListener("close", () => {
-        if (!state.tabs.length) requestAnimationFrame(openLoaderDialog);
+        if (!state.snapshotData) requestAnimationFrame(openLoaderDialog);
+        else els.subtitle.textContent = describeSnapshot(state.snapshotData, state.snapshotFilename, state.tabs);
         // Note: loaderFlow.pendingProfiles + state intentionally persist after
         // close so that dropping containers.json onto the page later still
         // applies it to the just-loaded session.
@@ -3541,6 +3683,7 @@
         if (!els.helpDialog.open) els.helpDialog.showModal();
       });
       $("closeHelp").addEventListener("click", () => els.helpDialog.close());
+      bindTabGuideEvents();
 
       $("openSelected").addEventListener("click", openSelected);
       $("copyUrls").addEventListener("click", () => copySelected("urls"));
@@ -3606,13 +3749,21 @@
         loadParsedData(payload.data, payload.filename, { saveLast: true });
         return true;
       } catch (error) {
+        if (state.snapshotData) els.subtitle.textContent = describeSnapshot(state.snapshotData, state.snapshotFilename, state.tabs);
         showToast(`Invalid JSON: ${error.message}`);
         return false;
       }
     }
 
     function loadParsedData(parsed, filename, options = {}) {
-      state.tabs = normalize(parsed);
+      const snapshotData = compactSnapshotData(parsed);
+      const tabs = normalize(snapshotData);
+      if (els.tabGuideDialog.open) els.tabGuideDialog.close();
+      tabGuide.tab = null;
+      tabGuide.copyAttempt++;
+      state.snapshotFilename = filename;
+      state.snapshotData = snapshotData;
+      state.tabs = tabs;
       state.selected.clear();
       state.collapsed.clear();
       state.activeIndex = -1;
@@ -3628,9 +3779,10 @@
       closeDropDialog();
       const summary = describeSnapshot(parsed, filename, state.tabs);
       els.subtitle.textContent = options.restored ? `Restored ${summary}` : summary;
-      els.exportJsonButton.disabled = !state.tabs.length;
+      els.exportJsonButton.disabled = false;
+      renderSnapshotStatus();
       render();
-      if (options.saveLast) saveLastSnapshot(parsed, filename, state.tabs);
+      if (options.saveLast) saveLastSnapshot(state.snapshotData, filename, state.tabs);
     }
 
     const SESSION_FILE_PRIORITY = {
@@ -4099,6 +4251,7 @@
             url: entry.url || "",
             lastAccessed: tab.lastAccessed || null,
             image: tab.image || "",
+            pinned: tab.pinned === true,
             container,
           });
         }
@@ -4119,7 +4272,7 @@
             const title = String(tab.title || "(no title)");
             const container = normalizeContainerMetadata(tab.container);
             const containerName = container.name;
-            const lastAccessed = Number.isFinite(Number(tab.lastAccessed)) ? Number(tab.lastAccessed) : null;
+            const lastAccessed = tab.lastAccessed != null && Number.isFinite(Number(tab.lastAccessed)) ? Number(tab.lastAccessed) : null;
             const domain = domainFromUrl(url);
             const profileName = String(profile.profile || `Profile ${profileIndex + 1}`);
             tabs.push({
@@ -4135,6 +4288,8 @@
               domain,
               lastAccessed,
               image: String(tab.image || ""),
+              pinned: typeof tab.pinned === "boolean" ? tab.pinned : null,
+              reviewed: tab.reviewed === true,
               container,
               searchText: `${title} ${url} ${domain} ${profileName} ${containerName} ${container.color} ${container.icon}`.toLowerCase(),
             });
@@ -4149,7 +4304,32 @@
       const windowCount = Array.isArray(data?.profiles)
         ? data.profiles.reduce((sum, profile) => sum + (profile.windows?.length || 0), 0)
         : 0;
-      return `${filename} - ${tabs.length} tabs across ${windowCount} windows in ${profileCount} profile${profileCount === 1 ? "" : "s"}`;
+      return `${filename} - ${tabs.length} snapshot tabs across ${windowCount} windows in ${profileCount} profile${profileCount === 1 ? "" : "s"}`;
+    }
+
+    function renderSnapshotStatus() {
+      const loaded = Boolean(state.snapshotData);
+      $("snapshotStatus").classList.toggle("hidden", !loaded);
+      $("loaderButtonLabel").textContent = loaded ? "Load newer snapshot" : "Load snapshot";
+      if (loaded) {
+        // Accept the existing compact UTC export format as well as ISO dates.
+        const raw = String(state.snapshotData.timestamp_utc || "");
+        const iso = raw.replace(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z$/, "$1-$2-$3T$4:$5:$6Z");
+        const date = new Date(iso);
+        const time = $("snapshotTime");
+        if (Number.isFinite(date.getTime())) {
+          time.dateTime = date.toISOString();
+          time.textContent = date.toLocaleString();
+        } else {
+          time.removeAttribute("datetime");
+          time.textContent = "Snapshot time unavailable";
+        }
+      }
+      syncStickyResultsTop();
+    }
+
+    function renderSnapshotCounts() {
+      $("snapshotCounts").textContent = `${state.tabs.length} tabs in snapshot · ${state.filtered.length} matching`;
     }
 
     function populateFilters() {
@@ -4187,6 +4367,13 @@
         state.filtered = [];
         state.groups = [];
         els.content.replaceChildren();
+        if (state.snapshotData) {
+          const empty = document.createElement("div");
+          empty.className = "card empty";
+          empty.textContent = "No tabs in this imported snapshot. Use Load newer snapshot to choose another session file.";
+          els.content.append(empty);
+        }
+        renderSnapshotCounts();
         clearSidebar();
         renderBulkBar();
         renderActiveFilters();
@@ -4195,6 +4382,7 @@
         return;
       }
       state.filtered = sortTabs(filterTabs(state.tabs));
+      renderSnapshotCounts();
       state.groups = buildGroups(state.filtered);
       renderGroups();
       renderSidebar();
@@ -4236,7 +4424,7 @@
     function buildGroups(tabs) {
       const groupBy = state.filters.groupBy;
       if (groupBy === "flat") {
-        return [{ key: "flat", title: "All matching tabs", tabs }];
+        return [{ key: "flat", title: "Matching snapshot tabs", tabs }];
       }
 
       const map = new Map();
@@ -4300,7 +4488,6 @@
       if (state.filters.groupBy === "flat" || !groupKeys.length) return null;
 
       const collapsedCount = groupKeys.filter((key) => state.collapsed.has(key)).length;
-      const totalTabs = state.groups.reduce((sum, group) => sum + group.tabs.length, 0);
       const groupType = labelForGroup(state.filters.groupBy).toLowerCase();
       const groupCountLabel = `${groupKeys.length} ${groupType} group${groupKeys.length === 1 ? "" : "s"}`;
       const toolbar = document.createElement("section");
@@ -4308,7 +4495,7 @@
 
       const title = document.createElement("div");
       title.className = "group-toolbar-title";
-      title.innerHTML = `<strong>Grouped by ${escapeHtml(labelForGroup(state.filters.groupBy))}</strong><span>${groupCountLabel}</span><span>${totalTabs} matching tabs</span><span>${collapsedCount} collapsed</span>`;
+      title.innerHTML = `<strong>Grouped by ${escapeHtml(labelForGroup(state.filters.groupBy))}</strong><span>${groupCountLabel}</span><span>${collapsedCount} collapsed</span>`;
 
       const menuButton = document.createElement("button");
       menuButton.type = "button";
@@ -4444,7 +4631,7 @@
       link.target = "_blank";
       link.rel = "noopener";
       link.textContent = tab.title;
-      link.title = `${tab.title}\n${tab.url}`;
+      link.title = `Open another copy: ${tab.title}\n${tab.url}`;
       title.append(link);
 
       const meta = document.createElement("div");
@@ -4461,15 +4648,25 @@
 
       const actions = document.createElement("div");
       actions.className = "tab-actions";
-      actions.appendChild(pill(tab.domain || "local"));
+      const find = document.createElement("button");
+      find.type = "button";
+      find.className = "find-tab";
+      find.textContent = "Find tab";
+      find.title = "Copy a Firefox tab search and show switching steps (f)";
+      find.setAttribute("aria-label", `Find tab: ${tab.title}`);
+      find.addEventListener("click", () => openTabGuide(tab));
+      actions.append(find);
 
       row.append(checkbox, icon, main, actions);
+      renderLocalReview(row, tab);
       row.addEventListener("click", (event) => {
-        if (event.target.closest("a")) return;
+        if (event.target.closest("a, button, input")) return;
         state.activeIndex = state.filtered.findIndex((candidate) => candidate.id === tab.id);
         renderGroups();
       });
-      row.addEventListener("dblclick", () => openTab(tab));
+      row.addEventListener("dblclick", (event) => {
+        if (!event.target.closest("a, button, input")) openTab(tab);
+      });
       row.addEventListener("contextmenu", (event) => {
         event.preventDefault();
         openContextMenu(event.clientX, event.clientY, tab);
@@ -4510,13 +4707,13 @@
 
     function renderSummary() {
       const tabs = state.tabs;
-      const windows = uniqueSorted(tabs.map((tab) => String(tab.windowNumber)), true).length;
-      const profiles = uniqueSorted(tabs.map((tab) => tab.profile)).length;
+      const profiles = state.snapshotData.profiles.length;
+      const windows = state.snapshotData.profiles.reduce((sum, profile) => sum + profile.windows.length, 0);
       const oldest = tabs.filter((tab) => tab.lastAccessed).sort((a, b) => a.lastAccessed - b.lastAccessed)[0];
       const newest = tabs.filter((tab) => tab.lastAccessed).sort((a, b) => b.lastAccessed - a.lastAccessed)[0];
       const faviconBytes = tabs.reduce((sum, tab) => sum + tab.image.length, 0);
       const stats = [
-        [tabs.length, "tabs"],
+        [tabs.length, "snapshot tabs"],
         [windows, "windows"],
         [profiles, "profiles"],
         [state.filtered.length, "matching"],
@@ -4944,9 +5141,9 @@
         },
         {
           type: "action",
-          title: "Open loader",
-          subtitle: "Show the folder, session, and JSON import dialog",
-          text: "open loader load import folder json modal dialog",
+          title: state.snapshotData ? "Load newer snapshot" : "Load snapshot",
+          subtitle: "Choose session files to replace the imported snapshot",
+          text: "open loader load newer snapshot import folder json modal dialog",
           run: openLoaderDialog,
         },
         {
@@ -5184,7 +5381,7 @@
         savedAt: new Date().toISOString(),
         filename,
         tabCount: tabs.length,
-        data: compactSnapshotData(parsed),
+        data: parsed,
       };
       let serialized = "";
       try {
@@ -5221,7 +5418,7 @@
       const snapshot = readLastSnapshot();
       if (!snapshot) return false;
       try {
-        loadParsedData(snapshot.data, snapshot.filename || "last loaded", { restored: true });
+        loadParsedData({ ...snapshot.data, timestamp_utc: snapshot.data.timestamp_utc || "unknown" }, snapshot.filename || "last loaded", { restored: true });
         if (!options.silent) {
           showToast(`Restored ${snapshot.tabCount || state.tabs.length} tab${(snapshot.tabCount || state.tabs.length) === 1 ? "" : "s"} from browser storage.`);
         }
@@ -5256,6 +5453,8 @@
 
     function clearTabsRuntimeState() {
       state.tabs = [];
+      state.snapshotData = null;
+      state.snapshotFilename = "";
       state.filtered = [];
       state.groups = [];
       state.selected.clear();
@@ -5274,6 +5473,7 @@
       populateFilters();
       els.subtitle.textContent = "Drop your Firefox session files here to begin.";
       els.exportJsonButton.disabled = true;
+      renderSnapshotStatus();
     }
 
     function lastSnapshotSubtitle(snapshot) {
@@ -5295,8 +5495,10 @@
             (Array.isArray(windowTabs) ? windowTabs : []).map((tab) => ({
               title: String(tab.title || "(no title)"),
               url: String(tab.url || ""),
-              lastAccessed: Number.isFinite(Number(tab.lastAccessed)) ? Number(tab.lastAccessed) : null,
+              lastAccessed: tab.lastAccessed != null && Number.isFinite(Number(tab.lastAccessed)) ? Number(tab.lastAccessed) : null,
               image: String(tab.image || ""),
+              pinned: typeof tab.pinned === "boolean" ? tab.pinned : null,
+              reviewed: tab.reviewed === true,
               container: serializeContainerMetadata(tab.container),
             }))
           ),
@@ -5327,7 +5529,7 @@
     }
 
     function exportReloadableJson() {
-      if (!state.tabs.length) {
+      if (!state.snapshotData) {
         showToast("Load tabs before exporting JSON.");
         return;
       }
@@ -5338,7 +5540,7 @@
         exportedAt: now.toISOString(),
         filename: `Firefox Tabs Viewer export ${now.toLocaleString()}`,
         tabCount: state.tabs.length,
-        data: snapshotDataFromTabs(state.tabs),
+        data: state.snapshotData,
       };
       const stamp = now.toISOString().replace(/[-:]|\.\d{3}/g, "").replace("T", "-").replace("Z", "Z");
       downloadText(
@@ -5347,40 +5549,6 @@
         "application/json"
       );
       showToast(`Exported ${state.tabs.length} tab${state.tabs.length === 1 ? "" : "s"} as reloadable JSON.`);
-    }
-
-    function snapshotDataFromTabs(tabs) {
-      const profiles = [];
-      for (const tab of tabs) {
-        const profileIndex = Number.isFinite(tab.profileIndex) ? tab.profileIndex : 0;
-        const windowIndex = Number.isFinite(tab.windowIndex) ? tab.windowIndex : 0;
-        const tabIndex = Number.isFinite(tab.tabIndex) ? tab.tabIndex : profiles[profileIndex]?.windows?.[windowIndex]?.length || 0;
-
-        if (!profiles[profileIndex]) {
-          profiles[profileIndex] = {
-            profile: tab.profile || `Profile ${profileIndex + 1}`,
-            profile_path: "",
-            session_file: "",
-            windows: [],
-          };
-        }
-        if (!profiles[profileIndex].windows[windowIndex]) profiles[profileIndex].windows[windowIndex] = [];
-        profiles[profileIndex].windows[windowIndex][tabIndex] = {
-          title: tab.title,
-          url: tab.url,
-          lastAccessed: tab.lastAccessed,
-          image: tab.image || "",
-          container: serializeContainerMetadata(tab.container),
-        };
-      }
-
-      return {
-        timestamp_utc: new Date().toISOString().replace(/[-:]|\.\d{3}/g, ""),
-        profiles: profiles.filter(Boolean).map((profile) => ({
-          ...profile,
-          windows: profile.windows.filter(Boolean).map((windowTabs) => windowTabs.filter(Boolean)),
-        })),
-      };
     }
 
     function serializeContainerMetadata(containerOrName) {
@@ -5408,13 +5576,15 @@
     }
 
     function handleKeydown(event) {
-      if (els.helpDialog.open || els.dropDialog.open) return;
+      if (els.helpDialog.open || els.dropDialog.open || els.tabGuideDialog.open) return;
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
         focusInputMode("command");
         return;
       }
-      if (event.target.matches("input, textarea, select")) return;
+      if (event.target.matches("input, textarea, select") || event.target.isContentEditable) return;
+      // Let Enter activate a focused control without also opening another URL.
+      if (event.key === "Enter" && event.target.closest("button, a, summary")) return;
       if (event.key === "/") {
         event.preventDefault();
         focusInputMode("search");
@@ -5431,6 +5601,9 @@
       } else if (event.key === "k" || event.key === "ArrowUp") {
         event.preventDefault();
         moveActive(-1);
+      } else if (event.key.toLowerCase() === "f" && !event.ctrlKey && !event.metaKey && !event.altKey && state.activeIndex >= 0) {
+        event.preventDefault();
+        openTabGuide(state.filtered[state.activeIndex]);
       } else if (event.key === "Enter" && state.activeIndex >= 0) {
         openTab(state.filtered[state.activeIndex]);
       } else if (event.key === "x" && state.activeIndex >= 0) {
@@ -5482,7 +5655,8 @@
       menu.style.left = `${x}px`;
       menu.style.top = `${y}px`;
       menu.append(
-        contextButton("Open", () => openTab(tab)),
+        contextButton("Find tab in Firefox…", () => openTabGuide(tab)),
+        contextButton("Open another copy", () => openTab(tab)),
         contextButton("Copy URL", () => copyText(tab.url)),
         contextButton("Copy title", () => copyText(tab.title)),
         contextButton("Copy markdown", () => copyText(formatExport([tab], "markdown"))),
@@ -5512,6 +5686,140 @@
 
     function closeContextMenu() {
       document.querySelector(".context-menu")?.remove();
+    }
+
+    function renderLocalReview(row, tab) {
+      if (!row) return;
+      row.classList.toggle("reviewed", tab.reviewed);
+      const badge = row.querySelector(".review-status");
+      if (tab.reviewed && !badge) {
+        const status = pill("Reviewed locally");
+        status.classList.add("review-status");
+        row.querySelector(".tab-actions").append(status);
+      } else if (!tab.reviewed) {
+        badge?.remove();
+      }
+    }
+
+    function bindTabGuideEvents() {
+      $("guidePlatform").value = detectOs() === "macos" ? "mac" : "windows";
+      $("closeTabGuide").addEventListener("click", () => els.tabGuideDialog.close());
+      els.tabGuideDialog.addEventListener("close", () => { tabGuide.copyAttempt++; });
+      $("guidePlatform").addEventListener("change", () => {
+        tabGuide.copyAttempt++;
+        $("guideCopyStatus").textContent = "";
+        renderTabGuide();
+      });
+      for (const [id, type] of [["guideUseTitle", "title"], ["guideUseUrl", "url"]]) {
+        $(id).addEventListener("click", () => {
+          tabGuide.queryType = type;
+          setTabGuideQuery();
+          copyTabSearch();
+        });
+      }
+      $("guideCopySearch").addEventListener("click", copyTabSearch);
+      $("guideQuery").addEventListener("input", () => {
+        tabGuide.copyAttempt++;
+        $("guideCopySearch").textContent = "Copy search";
+        $("guideCopyStatus").textContent = "Search changed. Copy it again before pasting into Firefox.";
+      });
+      $("guideMarkReviewed").addEventListener("click", () => {
+        const tab = tabGuide.tab;
+        if (!tab) return;
+        tab.reviewed = !tab.reviewed;
+        renderLocalReview(document.querySelector(`.tab-row[data-id="${cssEscape(tab.id)}"]`), tab);
+        $("guideMarkReviewed").textContent = tab.reviewed ? "Undo local review" : "Mark reviewed locally";
+        // Persist review progress with this snapshot, never by a live-tab guess.
+        state.snapshotData.profiles[tab.profileIndex].windows[tab.windowIndex][tab.tabIndex].reviewed = tab.reviewed;
+        saveLastSnapshot(state.snapshotData, state.snapshotFilename, state.tabs);
+      });
+    }
+
+    function openTabGuide(tab) {
+      if (!tab) return;
+      closeContextMenu();
+      closeCommandPalette();
+      tabGuide.tab = tab;
+      // Snapshot membership changes only on import; count once per opened guide.
+      tabGuide.duplicateCount = 1;
+      for (const candidate of state.tabs) {
+        if (candidate.id !== tab.id && candidate.profileIndex === tab.profileIndex
+          && ((tab.url && candidate.url === tab.url) || (tab.title !== "(no title)" && candidate.title === tab.title))) {
+          tabGuide.duplicateCount++;
+        }
+      }
+      tabGuide.queryType = tab.title && tab.title !== "(no title)" ? "title" : "url";
+      state.activeIndex = state.filtered.findIndex((candidate) => candidate.id === tab.id);
+      $("guideTroubleshooting").open = false;
+      setTabGuideQuery();
+      renderTabGuide();
+      if (!els.tabGuideDialog.open) els.tabGuideDialog.showModal();
+      els.tabGuideDialog.scrollTop = 0;
+      // Use the row's click/keyboard activation to copy without an extra click.
+      copyTabSearch();
+    }
+
+    function setTabGuideQuery() {
+      tabGuide.copyAttempt++;
+      const tab = tabGuide.tab;
+      const source = tabGuide.queryType === "title" ? tab.title : tab.url;
+      // Full title/URL remains editable; never truncate a distinguishing token.
+      const text = String(source || "").replace(/\s+/g, " ").trim();
+      $("guideQuery").value = `% ${text}`;
+      $("guideCopyStatus").textContent = "";
+      $("guideCopySearch").textContent = "Copy search";
+      $("guideUseTitle").setAttribute("aria-pressed", String(tabGuide.queryType === "title"));
+      $("guideUseUrl").setAttribute("aria-pressed", String(tabGuide.queryType === "url"));
+    }
+
+    function renderTabGuide() {
+      const tab = tabGuide.tab;
+      if (!tab) return;
+      const modifier = $("guidePlatform").value === "mac" ? "Cmd" : "Ctrl";
+      $("guideTargetTitle").textContent = tab.title;
+      $("guideTargetUrl").textContent = tab.url || "No URL in this snapshot";
+      const location = pill(`Snapshot: ${tab.profile} · Window ${tab.windowNumber} · Tab ${tab.tabNumber}`);
+      $("guideTargetMeta").replaceChildren(chip(tab.container), location);
+      if (tab.pinned === true) $("guideTargetMeta").append(pill("Pinned in snapshot"));
+      $("guideMarkReviewed").textContent = tab.reviewed ? "Undo local review" : "Mark reviewed locally";
+      for (const [key, value] of Object.entries({ address: `${modifier}+L`, paste: `${modifier}+V` })) {
+        els.tabGuideDialog.querySelectorAll(`[data-guide-key="${key}"]`).forEach((node) => { node.textContent = value; });
+      }
+      $("guideDuplicateWarning").hidden = tabGuide.duplicateCount < 2;
+      $("guideDuplicateWarning").textContent = tabGuide.duplicateCount > 1
+        ? `${tabGuide.duplicateCount} tabs in this profile’s snapshot share this URL or title. Compare the page and container in Firefox. Identical copies cannot be distinguished by this search alone.`
+        : "";
+    }
+
+    async function copyTabSearch() {
+      const query = $("guideQuery");
+      const text = query.value.trim();
+      const attempt = ++tabGuide.copyAttempt;
+      const modifier = $("guidePlatform").value === "mac" ? "Cmd" : "Ctrl";
+      const current = () => attempt === tabGuide.copyAttempt && els.tabGuideDialog.open;
+      if (!/^%\s+\S/.test(text)) {
+        $("guideCopyStatus").textContent = "Start with % and a space, then add a title phrase or URL.";
+        query.focus();
+        return;
+      }
+      let copied = false;
+      try {
+        if (navigator.clipboard?.writeText) {
+          await navigator.clipboard.writeText(text);
+          copied = true;
+        }
+      } catch (_) { /* Try selection-based copying below, including file://. */ }
+      if (!current()) return;
+      if (!copied) {
+        query.focus();
+        query.select();
+        try { copied = document.execCommand("copy"); } catch (_) {}
+      }
+      if (!current()) return;
+      $("guideCopySearch").textContent = copied ? "Copy again" : "Copy search";
+      $("guideCopyStatus").textContent = copied
+        ? `Search copied. In Firefox: ${modifier}+L → ${modifier}+V → choose “Switch to tab” → Enter.`
+        : `Automatic copy is unavailable. The search is selected: press ${modifier}+C, then paste it into Firefox’s address bar.`;
     }
 
     function openTab(tab) {
@@ -5615,7 +5923,7 @@
     function applySidebarVisibility({ animate = false } = {}) {
       const hasSidebarContent = state.tabs.length > 0;
       const isOpen = hasSidebarContent && state.sidebarOpen;
-      els.exportJsonButton.disabled = !hasSidebarContent;
+      els.exportJsonButton.disabled = !state.snapshotData;
       els.sidebarToggle.disabled = !hasSidebarContent;
       els.sidebarToggle.setAttribute("aria-expanded", String(isOpen));
       els.sidebarToggle.title = isOpen ? "Hide insights" : "Show insights";

@@ -5,8 +5,7 @@ Firefox-tabs-review
 
 Open `firefox-tabs-review.html`, drop in Firefox session data, and review the tabs outside the browser window that created them.
 
-It does not talk to Firefox or close anything for you.  
-It reads files you choose, builds a tab list, and leaves the decision-making to you.
+It reads files you choose and builds an **imported snapshot** of your tabs. **Find tab** copies a Firefox tab-search query and guides you to a matching open tab. Use **Load newer snapshot** to choose updated session files when you want to refresh the list. Browser changes are not tracked automatically.
 
 
 <figure>
@@ -120,7 +119,29 @@ Sorting covers original order, newest first, oldest first, title, and domain.
 Select tabs with checkboxes or the keyboard,  
 then use the bulk bar to open them, copy plain URLs, copy Markdown links, or copy OneTab-style text.
 
-Right-click a row for one-tab actions: open, copy URL, copy title, copy Markdown, or filter by domain.
+Right-click a row for one-tab actions: find, open another copy, copy URL, copy title, copy Markdown, or filter by domain.
+
+## Find an existing tab in Firefox
+
+1. Find the row using the viewer's search or filters, then click **Find tab** (or select the row and press **f**). The viewer copies a search such as `% Project planning` immediately and opens the guide.
+2. Focus Firefox in the profile that contains the tab. Press **Ctrl+L**, then **Ctrl+V** (**Cmd+L**, then **Cmd+V** on macOS).
+3. Choose the matching **Switch to tab** result with the arrow keys and **Enter**, or click it. Compare the full URL, page content, and container with the guide's target.
+
+The guide detects your keyboard platform and lets you change it. **Title** and **URL** switch the copied search; the text is editable if a shorter distinctive phrase works better. If clipboard access is blocked, the guide selects the query and tells you how to copy it manually.
+
+Tabs with the same title or URL trigger a warning, including copies hidden by viewer filters. Snapshot profile, window, and tab positions are clues: they can change, and identical copies cannot be identified reliably from a file. If there is no match, try the URL or a shorter phrase, check the profile, or use **Load newer snapshot** to choose a fresh `recovery.jsonlz4`.
+
+**Mark reviewed locally** adds a **Reviewed locally** badge; **Undo local review** clears it. All rows stay visible, and snapshot counts stay unchanged. Review status persists with the saved snapshot and reloadable JSON, preserving the original timestamp, source metadata, and window/tab positions. Loading a fresh Firefox session starts a fresh review.
+
+The persistent **Imported snapshot** strip shows the timestamp recorded in the imported data, the total tabs in that snapshot, and the number matching your filters. For raw Firefox session files, the timestamp is the import time; it is not a live reading of Firefox. Refreshing the viewer, marking a row reviewed, and reopening an export preserve that timestamp. Older data with an unknown timestamp is labeled accordingly.
+
+**Load newer snapshot** opens the existing file-import dialog. Choose updated Firefox session files to replace the snapshot. Canceling or choosing an unreadable file keeps the previous snapshot. A valid session with no tabs displays an empty snapshot. Reloading the viewer restores the saved snapshot instead of rereading Firefox's files.
+
+A short optional closing tip lives in **Help**. Closing a browser tab leaves the imported snapshot unchanged.
+
+Clicking a row's title, double-clicking a row, or using **Open another copy** still opens its URL in a new tab. These actions are separate from the guided search for an existing tab.
+
+The Firefox steps follow Mozilla's [tab-search instructions](https://support.mozilla.org/en-US/kb/search-open-tabs-firefox), [keyboard shortcuts](https://support.mozilla.org/en-US/kb/keyboard-shortcuts-perform-firefox-tasks-quickly), and [pinned-tab guidance](https://support.mozilla.org/en-US/kb/pinned-tabs-keep-favorite-websites-open).
 
 ## Command palette (and shortcuts)
 
@@ -136,7 +157,8 @@ Useful shortcuts:
 - `?` opens help.
 - `j` and `k` move the active row.
 - Arrow keys move through rows or command results.
-- `Enter` opens the active tab or runs the active command.
+- `f` copies a Firefox search for the active row and opens the switch guide.
+- `Enter` opens another copy of the active tab's URL or runs the active command.
 - `x` selects the active tab.
 - `Shift x` selects a range.
 - `g g` jumps to the first match.
@@ -164,5 +186,6 @@ Sharing the HTML viewer is fine. Sharing your own exported JSON or session files
 
 - The viewer reads the current entry for each tab, not the whole back/forward history.
 - Private windows are not captured because Firefox does not write them to session restore files.
-- Pinned state, muted/audio state, reader mode, and scroll position are not shown.
+- Pinned state is retained when present and shown in the Find tab guide. Older viewer exports may not include it. Muted/audio state, reader mode, and scroll position are not shown.
 - A session file can lag behind Firefox while the browser is still writing it.
+- The standalone viewer cannot activate or close browser tabs directly, verify a completed action, or distinguish identical live copies from a snapshot. Direct control would require a Firefox extension with live tab IDs.
